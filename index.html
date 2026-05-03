@@ -20,19 +20,16 @@
 <div class="app">
   <div class="hdr"><div class="hdr-title">Life OS</div></div>
 
+  <!-- ── 5-TAB NAVIGATION ── -->
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('start')">Morgen</button>
-    <button class="tab-btn" onclick="switchTab('state')">State</button>
-    <button class="tab-btn" onclick="switchTab('pipeline')">Pipeline</button>
-    <button class="tab-btn" onclick="switchTab('dms')">DMs</button>
-    <button class="tab-btn" onclick="switchTab('ziele')">Manifest</button>
-    <button class="tab-btn" onclick="switchTab('tagesplan')">Tagesplan</button>
-    <button class="tab-btn" onclick="switchTab('sales')">Sales Call</button>
+    <button class="tab-btn" onclick="switchTab('outreach')">Outreach</button>
     <button class="tab-btn" onclick="switchTab('mindset')">Mindset</button>
+    <button class="tab-btn" onclick="switchTab('ziele')">Ziele</button>
     <button class="tab-btn" onclick="switchTab('review')">Review</button>
   </div>
 
-  <!-- ===== START (MORGEN) ===== -->
+  <!-- ===== MORGEN (Start) ===== -->
   <div id="tab-start" class="tab-panel active">
 
     <div class="card" style="border-color:rgba(245,158,11,.35);margin-bottom:14px">
@@ -50,6 +47,10 @@
       <div class="gratitude-item"><span class="gratitude-num">1.</span><input type="text" id="grat-1" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
       <div class="gratitude-item"><span class="gratitude-num">2.</span><input type="text" id="grat-2" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
       <div class="gratitude-item"><span class="gratitude-num">3.</span><input type="text" id="grat-3" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
+      <div class="paper-done-row">
+        <button class="btn btn-paper btn-sm" id="paper-done-gratitude" onclick="doneOnPaper('gratitude')">✍️ Auf Papier gemacht +10 XP</button>
+        <span style="font-size:11px;color:var(--muted)">Dankbarkeit auf Papier geschrieben</span>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:14px">
@@ -64,7 +65,10 @@
       <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-0" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-0" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
       <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-1" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-1" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
       <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-2" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-2" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
-      <div style="margin-top:14px"><button class="btn btn-amber btn-sm" onclick="completeMorningRitual()">Morgenritual abschließen +20 XP</button></div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-amber btn-sm" onclick="completeMorningRitual()">Morgenritual abschließen +20 XP</button>
+        <button class="btn btn-paper btn-sm" id="paper-done-contracts" onclick="doneOnPaper('contracts')">✍️ Auf Papier +15 XP</button>
+      </div>
     </div>
 
     <div class="dual-csq-grid">
@@ -119,290 +123,320 @@
       <div id="fu-list"></div>
     </div>
 
-    <button id="outreach-btn" class="btn btn-amber btn-full" style="margin-bottom:10px" onclick="switchTab('pipeline')">Jetzt Outreach starten →</button>
+    <button id="outreach-btn" class="btn btn-amber btn-full" style="margin-bottom:10px" onclick="switchTab('outreach')">Jetzt Outreach starten →</button>
     <button id="clickup-btn" class="btn btn-ghost btn-full locked" onclick="openClickUp()">ClickUp öffnen</button>
 
-  </div>
-
-  <!-- ===== STATE ===== -->
-  <div id="tab-state" class="tab-panel">
-    <div class="sec-h">State tracken</div>
-    <div class="sec-sub">Beobachte was deinen State hebt und senkt — 2–3x täglich mit Alarm.</div>
-
-    <div class="card" style="border-color:rgba(59,130,246,.3);margin-bottom:14px">
-      <div class="card-label">State jetzt bewerten</div>
+    <!-- ── QUICK STATE LOG ── -->
+    <div class="card" style="margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-label" style="margin-bottom:0">State jetzt loggen</div>
+        <span style="font-size:11px;color:var(--muted)">2–3x täglich</span>
+      </div>
       <div class="state-big-num" id="state-now-num" style="color:var(--muted)">7</div>
       <input type="range" class="state-slider" id="state-log-slider" min="1" max="10" value="7"
              oninput="updateStateNowDisplay(parseInt(this.value))">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:14px"><span>1 Keller</span><span>5 Okay</span><span>10 Gott-Modus</span></div>
-      <div class="fg">
-        <label>Was hat deinen State beeinflusst? (optional)</label>
-        <input type="text" id="state-log-note" placeholder="z.B. Schlechter Schlaf, guter Call, Sport gemacht…">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px"><span>1 Keller</span><span>5 Okay</span><span>10 Gott-Modus</span></div>
+      <div class="fg" style="margin-bottom:10px">
+        <input type="text" id="state-log-note" placeholder="Was hat deinen State beeinflusst? (optional)">
       </div>
-      <div style="margin-bottom:14px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Tags schnell setzen:</div>
-        <div>
-          <span class="state-tag" data-tag="Musik" onclick="toggleStateTag(this)">Musik</span>
-          <span class="state-tag" data-tag="Sport" onclick="toggleStateTag(this)">Sport</span>
-          <span class="state-tag" data-tag="Essen" onclick="toggleStateTag(this)">Essen</span>
-          <span class="state-tag" data-tag="Client Call" onclick="toggleStateTag(this)">Client Call</span>
-          <span class="state-tag" data-tag="Outreach" onclick="toggleStateTag(this)">Outreach</span>
-          <span class="state-tag" data-tag="Menschen" onclick="toggleStateTag(this)">Menschen</span>
-          <span class="state-tag" data-tag="Schlecht geschlafen" onclick="toggleStateTag(this)">Schlechter Schlaf</span>
-        </div>
+      <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:4px">
+        <span class="state-tag" data-tag="Musik" onclick="toggleStateTag(this)">Musik</span>
+        <span class="state-tag" data-tag="Sport" onclick="toggleStateTag(this)">Sport</span>
+        <span class="state-tag" data-tag="Essen" onclick="toggleStateTag(this)">Essen</span>
+        <span class="state-tag" data-tag="Client Call" onclick="toggleStateTag(this)">Client Call</span>
+        <span class="state-tag" data-tag="Outreach" onclick="toggleStateTag(this)">Outreach</span>
+        <span class="state-tag" data-tag="Menschen" onclick="toggleStateTag(this)">Menschen</span>
+        <span class="state-tag" data-tag="Schlecht geschlafen" onclick="toggleStateTag(this)">Schlechter Schlaf</span>
       </div>
-      <button class="btn btn-primary" onclick="saveStateEntry()">State loggen +5 XP</button>
+      <button class="btn btn-primary btn-sm" onclick="saveStateEntry()">State loggen +5 XP</button>
     </div>
 
-    <div class="card" style="margin-bottom:14px">
+    <div class="card" style="margin-bottom:4px">
       <div class="card-label">Heute</div>
       <div id="state-today-log"><div class="empty-state">Noch keine Einträge heute.</div></div>
     </div>
 
-    <div class="card" style="background:var(--accent-dim);border-color:rgba(59,130,246,.25)">
-      <div class="card-label" style="color:var(--accent)">Warum State alles entscheidet</div>
-      <div style="font-size:14px;color:var(--text);line-height:1.7">Raphael Zenati (€500k–€1M/Monat) sprach 2 Tage bei Alessandro's Mastermind — keine Strategie. Nur Frequenz, Vibration, State.<br><br><em>"Es ist kein strategisches Spiel. Es ist ein spirituelles Spiel der Selbstverbesserung."</em><br><br>Gleiche Situation + hoher State = völlig anderes Ergebnis. Kunden werden gewonnen oder verloren bevor das erste Wort fällt. Setze 2–3 Alarme täglich und tracke deinen State — dann ändere, was ihn senkt.</div>
+    <!-- ── COLLAPSIBLE TAGESPLAN ── -->
+    <button class="tagesplan-toggle" id="tagesplan-toggle" onclick="toggleTagesplan()">
+      <span>Tagesplan &amp; Meditation</span>
+      <span class="tagesplan-toggle-icon">▼</span>
+    </button>
+    <div class="tagesplan-section" id="tagesplan-section">
+      <div class="med-card" style="margin-top:8px">
+        <div class="med-card-lbl">Meditation</div>
+        <div class="med-card-title">Box Breathing</div>
+        <div class="med-card-sub">4 Sek. einatmen · 4 halten · 4 ausatmen · 4 halten</div>
+        <div class="med-row">
+          <select id="med-duration" style="width:auto;padding:8px 12px;font-size:13px">
+            <option value="5">5 Min</option>
+            <option value="10" selected>10 Min</option>
+            <option value="15">15 Min</option>
+            <option value="20">20 Min</option>
+          </select>
+          <button class="btn btn-purple btn-sm" onclick="startMeditationFromSelect()">Jetzt meditieren</button>
+        </div>
+        <div id="med-done-msg" class="med-done-msg">✓ Meditation abgeschlossen — als erledigt markiert.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Dein Tagesplan</div>
+        <div id="tl-wrap" class="tl-wrap"></div>
+      </div>
     </div>
+
   </div>
 
-  <!-- ===== PIPELINE ===== -->
-  <div id="tab-pipeline" class="tab-panel">
+  <!-- ===== OUTREACH (Pipeline + DMs + Sales Call) ===== -->
+  <div id="tab-outreach" class="tab-panel">
 
-    <div class="mission-card" id="mission-view">
-      <button class="mc-edit-btn" onclick="toggleMissionEdit()" title="Bearbeiten">✎</button>
-      <div class="mc-tag">Dein Ziel</div>
-      <div class="mc-goal empty" id="mc-goal">Ziel setzen → tippe auf ✎</div>
-      <div class="mc-deadline" id="mc-deadline"></div>
-      <div class="mc-consequence" id="mc-consequence" style="display:none"></div>
-      <div class="mc-bottom">
-        <div class="mc-count-wrap"><span class="mc-count" id="mc-sent">0</span><span style="font-size:12px;color:var(--muted)"> / <span id="mc-target">20</span> heute</span></div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-          <div class="mc-streak zero" id="mc-streak">Streak starten</div>
-          <div class="lvl-badge" id="mc-level" style="display:none"></div>
+    <!-- Sub Navigation -->
+    <div class="sub-nav">
+      <button class="sub-btn active" data-sub="pipeline" onclick="switchSubNav('pipeline')">Pipeline</button>
+      <button class="sub-btn" data-sub="dms" onclick="switchSubNav('dms')">DMs</button>
+      <button class="sub-btn" data-sub="sales" onclick="switchSubNav('sales')">Sales Call</button>
+    </div>
+
+    <!-- Pipeline Sub-Panel -->
+    <div id="sub-pipeline" class="sub-panel active">
+
+      <div class="mission-card" id="mission-view">
+        <button class="mc-edit-btn" onclick="toggleMissionEdit()" title="Bearbeiten">✎</button>
+        <div class="mc-tag">Dein Ziel</div>
+        <div class="mc-goal empty" id="mc-goal">Ziel setzen → tippe auf ✎</div>
+        <div class="mc-deadline" id="mc-deadline"></div>
+        <div class="mc-consequence" id="mc-consequence" style="display:none"></div>
+        <div class="mc-bottom">
+          <div class="mc-count-wrap"><span class="mc-count" id="mc-sent">0</span><span style="font-size:12px;color:var(--muted)"> / <span id="mc-target">20</span> heute</span></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <div class="mc-streak zero" id="mc-streak">Streak starten</div>
+            <div class="lvl-badge" id="mc-level" style="display:none"></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="card" id="mission-edit" style="display:none">
-      <div class="card-label">Ziel bearbeiten</div>
-      <div class="fg"><label>Ziel</label><input type="text" id="me-goal" placeholder="z.B. Erster paying client"></div>
-      <div class="fg"><label>Deadline</label><input type="date" id="me-deadline"></div>
-      <div class="fg"><label>Was passiert, wenn nicht?</label><textarea id="me-consequence" placeholder="Sei ehrlich mit dir selbst." rows="2" style="min-height:60px"></textarea></div>
-      <div class="fg"><label>Tages-Ziel (DMs)</label><input type="number" id="me-target" min="1" max="200" value="20"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="saveMissionEdit()">Speichern</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleMissionEdit()">Abbrechen</button>
+      <div class="card" id="mission-edit" style="display:none">
+        <div class="card-label">Ziel bearbeiten</div>
+        <div class="fg"><label>Ziel</label><input type="text" id="me-goal" placeholder="z.B. Erster paying client"></div>
+        <div class="fg"><label>Deadline</label><input type="date" id="me-deadline"></div>
+        <div class="fg"><label>Was passiert, wenn nicht?</label><textarea id="me-consequence" placeholder="Sei ehrlich mit dir selbst." rows="2" style="min-height:60px"></textarea></div>
+        <div class="fg"><label>Tages-Ziel (DMs)</label><input type="number" id="me-target" min="1" max="200" value="20"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="saveMissionEdit()">Speichern</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleMissionEdit()">Abbrechen</button>
+        </div>
       </div>
-    </div>
 
-    <div class="stage-filter" id="stage-filter">
-      <button class="sf-pill active" data-filter="all" onclick="setFilter('all')">Alle <span class="sf-count" id="ct-all">0</span></button>
-      <button class="sf-pill" data-filter="dm_sent" onclick="setFilter('dm_sent')">DM <span class="sf-count" id="ct-dm_sent">0</span></button>
-      <button class="sf-pill" data-filter="followup" onclick="setFilter('followup')">Follow-up <span class="sf-count" id="ct-followup">0</span></button>
-      <button class="sf-pill" data-filter="loom" onclick="setFilter('loom')">Loom <span class="sf-count" id="ct-loom">0</span></button>
-      <button class="sf-pill" data-filter="loom_sent" onclick="setFilter('loom_sent')">Loom ✓ <span class="sf-count" id="ct-loom_sent">0</span></button>
-      <button class="sf-pill" data-filter="call_booked" onclick="setFilter('call_booked')">Call <span class="sf-count" id="ct-call_booked">0</span></button>
-      <button class="sf-pill" data-filter="won" onclick="setFilter('won')">Won <span class="sf-count" id="ct-won">0</span></button>
-      <button class="sf-pill" data-filter="lost" onclick="setFilter('lost')">Lost <span class="sf-count" id="ct-lost">0</span></button>
-    </div>
-
-    <button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="toggleAddForm()">+ Prospect hinzufügen</button>
-
-    <div class="card" id="add-form" style="display:none">
-      <div class="card-label">Neuer Prospect</div>
-      <div class="fg"><label>Vorname *</label><input type="text" id="ap-name" placeholder="z.B. Sarah"></div>
-      <div class="fg"><label>Was macht er/sie?</label>
-        <select id="ap-type">
-          <option value="">Wählen…</option>
-          <option value="coach">Coach</option>
-          <option value="speaker">Speaker</option>
-          <option value="consultant">Consultant / Berater</option>
-          <option value="course">Course Creator</option>
-        </select>
+      <div class="stage-filter" id="stage-filter">
+        <button class="sf-pill active" data-filter="all" onclick="setFilter('all')">Alle <span class="sf-count" id="ct-all">0</span></button>
+        <button class="sf-pill" data-filter="dm_sent" onclick="setFilter('dm_sent')">DM <span class="sf-count" id="ct-dm_sent">0</span></button>
+        <button class="sf-pill" data-filter="followup" onclick="setFilter('followup')">Follow-up <span class="sf-count" id="ct-followup">0</span></button>
+        <button class="sf-pill" data-filter="loom" onclick="setFilter('loom')">Loom <span class="sf-count" id="ct-loom">0</span></button>
+        <button class="sf-pill" data-filter="loom_sent" onclick="setFilter('loom_sent')">Loom ✓ <span class="sf-count" id="ct-loom_sent">0</span></button>
+        <button class="sf-pill" data-filter="call_booked" onclick="setFilter('call_booked')">Call <span class="sf-count" id="ct-call_booked">0</span></button>
+        <button class="sf-pill" data-filter="won" onclick="setFilter('won')">Won <span class="sf-count" id="ct-won">0</span></button>
+        <button class="sf-pill" data-filter="lost" onclick="setFilter('lost')">Lost <span class="sf-count" id="ct-lost">0</span></button>
       </div>
-      <div class="fg"><label>Phase</label>
-        <select id="ap-stage">
-          <option value="dm_sent">DM Gesendet</option>
-          <option value="followup">Follow-up</option>
-          <option value="loom">Loom</option>
-          <option value="call_booked">Call Gebucht</option>
-        </select>
-      </div>
-      <div class="fg"><label>Notizen (optional)</label><textarea id="ap-notes" placeholder="Was habe ich an ihrem Profil gesehen? Was war der Hook?" rows="2" style="min-height:60px"></textarea></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="submitAddProspect()">Hinzufügen</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleAddForm()">Abbrechen</button>
-      </div>
-    </div>
 
-    <div id="prospect-list"></div>
+      <button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="toggleAddForm()">+ Prospect hinzufügen</button>
 
-    <div class="card" style="margin-top:4px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="card" id="add-form" style="display:none">
+        <div class="card-label">Neuer Prospect</div>
+        <div class="fg"><label>Vorname *</label><input type="text" id="ap-name" placeholder="z.B. Sarah"></div>
+        <div class="fg"><label>Was macht er/sie?</label>
+          <select id="ap-type">
+            <option value="">Wählen…</option>
+            <option value="coach">Coach</option>
+            <option value="speaker">Speaker</option>
+            <option value="consultant">Consultant / Berater</option>
+            <option value="course">Course Creator</option>
+          </select>
+        </div>
+        <div class="fg"><label>Phase</label>
+          <select id="ap-stage">
+            <option value="dm_sent">DM Gesendet</option>
+            <option value="followup">Follow-up</option>
+            <option value="loom">Loom</option>
+            <option value="call_booked">Call Gebucht</option>
+          </select>
+        </div>
+        <div class="fg"><label>Notizen (optional)</label><textarea id="ap-notes" placeholder="Was habe ich an ihrem Profil gesehen? Was war der Hook?" rows="2" style="min-height:60px"></textarea></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="submitAddProspect()">Hinzufügen</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleAddForm()">Abbrechen</button>
+        </div>
+      </div>
+
+      <div id="prospect-list"></div>
+
+      <div class="card" style="margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:3px">Tagesstand teilen</div>
+            <div style="font-size:13px;color:var(--muted)">Summary für deinen Accountability-Partner</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="shareAccountability()">Teilen</button>
+        </div>
+        <span id="acc-ok" class="copy-ok" style="display:block;margin-top:8px">Kopiert!</span>
+      </div>
+
+    </div><!-- /sub-pipeline -->
+
+    <!-- DMs Sub-Panel -->
+    <div id="sub-dms" class="sub-panel">
+      <div class="sec-h">DM senden</div>
+      <div class="sec-sub">Kategorie wählen, Template auswählen, Name eingeben, kopieren.</div>
+      <div class="stage-filter" id="dm-cat-filter">
+        <button class="sf-pill active" data-cat="all" onclick="setDMCategory('all')">Alle</button>
+        <button class="sf-pill" data-cat="Kalt-Outreach IG" onclick="setDMCategory('Kalt-Outreach IG')">Kalt IG</button>
+        <button class="sf-pill" data-cat="Kalt-Outreach LinkedIn" onclick="setDMCategory('Kalt-Outreach LinkedIn')">Kalt LI</button>
+        <button class="sf-pill" data-cat="Follow-up" onclick="setDMCategory('Follow-up')">Follow-up</button>
+        <button class="sf-pill" data-cat="Loom Ankündigung" onclick="setDMCategory('Loom Ankündigung')">Loom</button>
+        <button class="sf-pill" data-cat="Voice Message" onclick="setDMCategory('Voice Message')">Voice</button>
+        <button class="sf-pill" data-cat="Holistic / Spirituell" onclick="setDMCategory('Holistic / Spirituell')">Holistic</button>
+        <button class="sf-pill" data-cat="Podcast / Creator" onclick="setDMCategory('Podcast / Creator')">Creator</button>
+      </div>
+
+      <div class="card">
+        <div class="fg">
+          <label>Template</label>
+          <select id="dm-pick" onchange="updateDMPreview()">
+            <option value="">Wählen…</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Name des Prospects</label>
+          <input type="text" id="dm-name" placeholder="z.B. Sarah" oninput="updateDMPreview()">
+        </div>
+        <div class="dm-preview-box empty" id="dm-preview">Wähle ein Template und gib einen Namen ein.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="copyDM()">Kopieren</button>
+          <button class="btn btn-secondary btn-sm" onclick="dmToPipeline()">+ In Pipeline</button>
+          <span id="dm-ok" class="copy-ok">Kopiert!</span>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div>
-          <div style="font-weight:600;font-size:14px;margin-bottom:3px">Tagesstand teilen</div>
-          <div style="font-size:13px;color:var(--muted)">Summary für deinen Accountability-Partner</div>
+          <div class="sec-h" style="margin-bottom:0">Deine Templates</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Benutze {name} als Platzhalter für den Vornamen.</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="shareAccountability()">Teilen</button>
-      </div>
-      <span id="acc-ok" class="copy-ok" style="display:block;margin-top:8px">Kopiert!</span>
-    </div>
-  </div>
-
-  <!-- ===== DMS ===== -->
-  <div id="tab-dms" class="tab-panel">
-    <div class="sec-h">DM senden</div>
-    <div class="sec-sub">Kategorie wählen, Template auswählen, Name eingeben, kopieren.</div>
-    <div class="stage-filter" id="dm-cat-filter">
-      <button class="sf-pill active" data-cat="all" onclick="setDMCategory('all')">Alle</button>
-      <button class="sf-pill" data-cat="Kalt-Outreach IG" onclick="setDMCategory('Kalt-Outreach IG')">Kalt IG</button>
-      <button class="sf-pill" data-cat="Kalt-Outreach LinkedIn" onclick="setDMCategory('Kalt-Outreach LinkedIn')">Kalt LI</button>
-      <button class="sf-pill" data-cat="Follow-up" onclick="setDMCategory('Follow-up')">Follow-up</button>
-      <button class="sf-pill" data-cat="Loom Ankündigung" onclick="setDMCategory('Loom Ankündigung')">Loom</button>
-      <button class="sf-pill" data-cat="Voice Message" onclick="setDMCategory('Voice Message')">Voice</button>
-      <button class="sf-pill" data-cat="Holistic / Spirituell" onclick="setDMCategory('Holistic / Spirituell')">Holistic</button>
-      <button class="sf-pill" data-cat="Podcast / Creator" onclick="setDMCategory('Podcast / Creator')">Creator</button>
-    </div>
-
-    <div class="card">
-      <div class="fg">
-        <label>Template</label>
-        <select id="dm-pick" onchange="updateDMPreview()">
-          <option value="">Wählen…</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label>Name des Prospects</label>
-        <input type="text" id="dm-name" placeholder="z.B. Sarah" oninput="updateDMPreview()">
-      </div>
-      <div class="dm-preview-box empty" id="dm-preview">Wähle ein Template und gib einen Namen ein.</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" onclick="copyDM()">Kopieren</button>
-        <button class="btn btn-secondary btn-sm" onclick="dmToPipeline()">+ In Pipeline</button>
-        <span id="dm-ok" class="copy-ok">Kopiert!</span>
-      </div>
-    </div>
-
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div>
-        <div class="sec-h" style="margin-bottom:0">Deine Templates</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:2px">Benutze {name} als Platzhalter für den Vornamen.</div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn btn-ghost btn-sm" onclick="addTemplate()">+ Neu</button>
-        <button class="btn btn-ghost btn-xs" onclick="resetTemplates()" style="color:var(--muted)">Reset</button>
-      </div>
-    </div>
-    <div id="template-list"></div>
-  </div>
-
-  <!-- ===== SALES CALL ===== -->
-  <div id="tab-sales" class="tab-panel">
-    <div class="conf-anchor">
-      <div class="ca-lbl">Dein Anker — immer sichtbar</div>
-      <div class="ca-text">Du hilfst Coaches, auf Instagram Kunden zu gewinnen — done for you. €6.000 für 90 Tage. Das ist fair für das Ergebnis, das du lieferst.</div>
-    </div>
-
-    <div class="sec-h">Sales Call Playbook</div>
-    <div class="sec-sub">Tippe auf einen Abschnitt, um ihn zu öffnen.</div>
-
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>1 · Einstieg &amp; Frame setzen</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <div class="script-block"><div class="script-lbl">Exakte Eröffnung</div>"Hey [Name], schön dass wir uns kurz Zeit nehmen. Ich mache das direkt: Ich möchte verstehen, wo du gerade stehst, was du aufbauen willst — und dann entscheiden wir gemeinsam, ob das, was ich tue, für dich passt. Kein Druck in keine Richtung. Alles gut?"</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:10px">Warum es funktioniert: Du setzt den Frame sofort. Kein Verkaufsdruck — du gibst ihnen Kontrolle und baust gleichzeitig Vertrauen auf.</div>
-      </div>
-    </div>
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>2 · Discovery</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <ul class="q-list">
-          <li>"Wie lange bist du schon auf Instagram aktiv, und was hast du bisher versucht, um Kunden darüber zu gewinnen?"</li>
-          <li>"Wie sieht dein Profil gerade aus — bist du ehrlich gesagt zufrieden mit dem, was es dir bringt?"</li>
-          <li>"Wie gewinnst du im Moment neue Kunden — hauptsächlich Empfehlungen, Ads, oder organisch?"</li>
-          <li>"Was macht dir dabei am meisten Kopfschmerzen?"</li>
-        </ul>
-      </div>
-    </div>
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>3 · Problem vertiefen</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <ul class="q-list">
-          <li>"Was passiert in deinem Business, wenn sich das in den nächsten 12 Monaten nicht ändert?"</li>
-          <li>"Was kostet dich das konkret — Zeit, Energie, Geld — dass du das noch nicht gelöst hast?"</li>
-          <li>"Wenn Instagram morgen perfekt funktionieren würde: Wie viele neue Kunden pro Monat wärst du dir sicher?"</li>
-        </ul>
-        <div style="font-size:13px;color:var(--muted);margin-top:12px"><strong style="color:var(--text)">Hör aktiv zu.</strong> Reflektiere zurück: "Also wenn ich das richtig verstehe…"</div>
-      </div>
-    </div>
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>4 · Vision</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <ul class="q-list">
-          <li>"Wo willst du in 90 Tagen mit deinem Instagram stehen? Was wäre ein Ergebnis, das du wirklich als Erfolg bezeichnen würdest?"</li>
-          <li>"Wie würde sich das auf dein Business auswirken, wenn das klappt?"</li>
-        </ul>
-        <div class="script-block"><div class="script-lbl">Bridging-Satz</div>"Das ist genau die Richtung, in die ich arbeite."</div>
-      </div>
-    </div>
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>5 · Bridge zum Angebot</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <div class="script-block"><div class="script-lbl">Exakter Übergang</div>"Was ich höre ist: du hast ein starkes Angebot, du weißt wer deine Zielgruppe ist — aber Instagram läuft entweder nicht oder kostet dich zu viel Zeit und Energie. Genau das ist das Problem, das ich löse. Darf ich dir kurz erklären, wie das aussieht?"</div>
-      </div>
-    </div>
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>6 · Angebot präsentieren</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <div class="script-block"><div class="script-lbl">Angebot — exakt so sagen</div>"Ich übernehme deinen kompletten Instagram-Auftritt für 90 Tage. Content-Strategie, Produktion, Captions, Posting-Plan, Community Management — alles. Du schickst mir einmal die Woche Material, der Rest läuft ohne dich.<br><br>Das Investment dafür ist €6.000 für 90 Tage."</div>
-        <div class="amber-notice"><strong>Danach: Stille halten.</strong> Sag nichts mehr. Lass die Zahl im Raum stehen. Wer zuerst spricht, verliert den Frame.</div>
-      </div>
-    </div>
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>7 · Einwände behandeln</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <div class="obj-card">
-          <div class="obj-quote">"Das ist zu teuer / ich kann mir das nicht leisten"</div>
-          <div class="obj-resp">"Ich verstehe das. Kurze Gegenfrage: Was kostet dich ein neuer Kunde bei dir? [Warten.] Wenn wir in 90 Tagen 2–3 Kunden über Instagram gewinnen, hat sich das bereits gerechnet. Die Frage ist nicht, ob du dir das leisten kannst — sondern ob du es dir leisten kannst, es nicht zu tun."</div>
-          <div class="obj-fu">Falls sie nochmal pushen: "Was wäre für dich ein fairer Preis für ein fertiges Instagram-System, das Kunden bringt?" — und dann hören.</div>
-        </div>
-        <div class="obj-card">
-          <div class="obj-quote">"Ich muss noch mal drüber nachdenken"</div>
-          <div class="obj-resp">"Klar, alles gut. Was genau ist das, worüber du nachdenken möchtest? Ist es das Budget, der Zeitpunkt — oder bist du noch nicht sicher, ob das für dich funktioniert?"</div>
-          <div class="obj-fu">Wenn konkret: löse den spezifischen Einwand. Wenn vage: "Wenn ich die wichtigste offene Frage jetzt beantworten könnte — was wäre das?"</div>
-        </div>
-        <div class="obj-card">
-          <div class="obj-quote">"Ich habe schon jemanden"</div>
-          <div class="obj-resp">"Okay, gut zu wissen. Was macht diese Person für dich konkret — und was bringt es dir bisher?"</div>
-          <div class="obj-fu">Falls zufrieden: "Alles klar, dann passt das gerade nicht — falls sich das ändert, meld dich einfach." Kein Druck. Sauberer Abschluss.</div>
-        </div>
-        <div class="obj-card">
-          <div class="obj-quote">"Ich habe gerade keine Zeit dafür"</div>
-          <div class="obj-resp">"Das ist genau der Grund, warum das für dich Sinn macht. Du brauchst keine Zeit dafür. Von dir brauche ich einmal die Woche 20 Minuten für Material — der Rest läuft komplett ohne dich."</div>
-          <div class="obj-fu">Stille halten. Falls weiter zögernd: "Was wäre der richtige Zeitpunkt für dich?"</div>
-        </div>
-        <div class="obj-card">
-          <div class="obj-quote">"Kannst du das nicht günstiger machen?"</div>
-          <div class="obj-resp">"Das ist nicht das Setup, in dem ich am besten arbeite. €6.000 für 90 Tage ist der Preis für ein vollständig gemanagtes System. Wenn ich den Preis reduziere, muss ich den Scope reduzieren — und dann bekommst du nicht das Ergebnis, über das wir gerade geredet haben."</div>
-          <div class="obj-fu">Stille. Kein Apology. Kein Verhandeln. Du bist ein Profi, kein Discount-Service.</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" onclick="addTemplate()">+ Neu</button>
+          <button class="btn btn-ghost btn-xs" onclick="resetTemplates()" style="color:var(--muted)">Reset</button>
         </div>
       </div>
-    </div>
-    <div class="acc-item">
-      <button class="acc-trigger" onclick="toggleAcc(this)"><span>8 · Close</span><span class="acc-arrow">▼</span></button>
-      <div class="acc-content">
-        <div class="script-block"><div class="script-lbl">Closing-Fragen</div>"Was brauchst du noch, um eine Entscheidung zu treffen?"<br><br>— Pause —<br><br>"Wenn alles passt — wollen wir jetzt einen Start-Termin festlegen?"</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:12px">Kein "Also was denkst du?" — das gibt ihnen eine Tür raus. Frag direkt nach dem nächsten Schritt.</div>
+      <div id="template-list"></div>
+    </div><!-- /sub-dms -->
+
+    <!-- Sales Call Sub-Panel -->
+    <div id="sub-sales" class="sub-panel">
+      <div class="conf-anchor">
+        <div class="ca-lbl">Dein Anker — immer sichtbar</div>
+        <div class="ca-text">Du hilfst Coaches, auf Instagram Kunden zu gewinnen — done for you. €6.000 für 90 Tage. Das ist fair für das Ergebnis, das du lieferst.</div>
       </div>
-    </div>
-  </div>
+
+      <div class="sec-h">Sales Call Playbook</div>
+      <div class="sec-sub">Tippe auf einen Abschnitt, um ihn zu öffnen.</div>
+
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>1 · Einstieg &amp; Frame setzen</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <div class="script-block"><div class="script-lbl">Exakte Eröffnung</div>"Hey [Name], schön dass wir uns kurz Zeit nehmen. Ich mache das direkt: Ich möchte verstehen, wo du gerade stehst, was du aufbauen willst — und dann entscheiden wir gemeinsam, ob das, was ich tue, für dich passt. Kein Druck in keine Richtung. Alles gut?"</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:10px">Warum es funktioniert: Du setzt den Frame sofort. Kein Verkaufsdruck — du gibst ihnen Kontrolle und baust gleichzeitig Vertrauen auf.</div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>2 · Discovery</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <ul class="q-list">
+            <li>"Wie lange bist du schon auf Instagram aktiv, und was hast du bisher versucht, um Kunden darüber zu gewinnen?"</li>
+            <li>"Wie sieht dein Profil gerade aus — bist du ehrlich gesagt zufrieden mit dem, was es dir bringt?"</li>
+            <li>"Wie gewinnst du im Moment neue Kunden — hauptsächlich Empfehlungen, Ads, oder organisch?"</li>
+            <li>"Was macht dir dabei am meisten Kopfschmerzen?"</li>
+          </ul>
+        </div>
+      </div>
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>3 · Problem vertiefen</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <ul class="q-list">
+            <li>"Was passiert in deinem Business, wenn sich das in den nächsten 12 Monaten nicht ändert?"</li>
+            <li>"Was kostet dich das konkret — Zeit, Energie, Geld — dass du das noch nicht gelöst hast?"</li>
+            <li>"Wenn Instagram morgen perfekt funktionieren würde: Wie viele neue Kunden pro Monat wärst du dir sicher?"</li>
+          </ul>
+          <div style="font-size:13px;color:var(--muted);margin-top:12px"><strong style="color:var(--text)">Hör aktiv zu.</strong> Reflektiere zurück: "Also wenn ich das richtig verstehe…"</div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>4 · Vision</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <ul class="q-list">
+            <li>"Wo willst du in 90 Tagen mit deinem Instagram stehen? Was wäre ein Ergebnis, das du wirklich als Erfolg bezeichnen würdest?"</li>
+            <li>"Wie würde sich das auf dein Business auswirken, wenn das klappt?"</li>
+          </ul>
+          <div class="script-block"><div class="script-lbl">Bridging-Satz</div>"Das ist genau die Richtung, in die ich arbeite."</div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>5 · Bridge zum Angebot</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <div class="script-block"><div class="script-lbl">Exakter Übergang</div>"Was ich höre ist: du hast ein starkes Angebot, du weißt wer deine Zielgruppe ist — aber Instagram läuft entweder nicht oder kostet dich zu viel Zeit und Energie. Genau das ist das Problem, das ich löse. Darf ich dir kurz erklären, wie das aussieht?"</div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>6 · Angebot präsentieren</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <div class="script-block"><div class="script-lbl">Angebot — exakt so sagen</div>"Ich übernehme deinen kompletten Instagram-Auftritt für 90 Tage. Content-Strategie, Produktion, Captions, Posting-Plan, Community Management — alles. Du schickst mir einmal die Woche Material, der Rest läuft ohne dich.<br><br>Das Investment dafür ist €6.000 für 90 Tage."</div>
+          <div class="amber-notice"><strong>Danach: Stille halten.</strong> Sag nichts mehr. Lass die Zahl im Raum stehen. Wer zuerst spricht, verliert den Frame.</div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>7 · Einwände behandeln</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <div class="obj-card">
+            <div class="obj-quote">"Das ist zu teuer / ich kann mir das nicht leisten"</div>
+            <div class="obj-resp">"Ich verstehe das. Kurze Gegenfrage: Was kostet dich ein neuer Kunde bei dir? [Warten.] Wenn wir in 90 Tagen 2–3 Kunden über Instagram gewinnen, hat sich das bereits gerechnet. Die Frage ist nicht, ob du dir das leisten kannst — sondern ob du es dir leisten kannst, es nicht zu tun."</div>
+            <div class="obj-fu">Falls sie nochmal pushen: "Was wäre für dich ein fairer Preis für ein fertiges Instagram-System, das Kunden bringt?" — und dann hören.</div>
+          </div>
+          <div class="obj-card">
+            <div class="obj-quote">"Ich muss noch mal drüber nachdenken"</div>
+            <div class="obj-resp">"Klar, alles gut. Was genau ist das, worüber du nachdenken möchtest? Ist es das Budget, der Zeitpunkt — oder bist du noch nicht sicher, ob das für dich funktioniert?"</div>
+            <div class="obj-fu">Wenn konkret: löse den spezifischen Einwand. Wenn vage: "Wenn ich die wichtigste offene Frage jetzt beantworten könnte — was wäre das?"</div>
+          </div>
+          <div class="obj-card">
+            <div class="obj-quote">"Ich habe schon jemanden"</div>
+            <div class="obj-resp">"Okay, gut zu wissen. Was macht diese Person für dich konkret — und was bringt es dir bisher?"</div>
+            <div class="obj-fu">Falls zufrieden: "Alles klar, dann passt das gerade nicht — falls sich das ändert, meld dich einfach." Kein Druck. Sauberer Abschluss.</div>
+          </div>
+          <div class="obj-card">
+            <div class="obj-quote">"Ich habe gerade keine Zeit dafür"</div>
+            <div class="obj-resp">"Das ist genau der Grund, warum das für dich Sinn macht. Du brauchst keine Zeit dafür. Von dir brauche ich einmal die Woche 20 Minuten für Material — der Rest läuft komplett ohne dich."</div>
+            <div class="obj-fu">Stille halten. Falls weiter zögernd: "Was wäre der richtige Zeitpunkt für dich?"</div>
+          </div>
+          <div class="obj-card">
+            <div class="obj-quote">"Kannst du das nicht günstiger machen?"</div>
+            <div class="obj-resp">"Das ist nicht das Setup, in dem ich am besten arbeite. €6.000 für 90 Tage ist der Preis für ein vollständig gemanagtes System. Wenn ich den Preis reduziere, muss ich den Scope reduzieren — und dann bekommst du nicht das Ergebnis, über das wir gerade geredet haben."</div>
+            <div class="obj-fu">Stille. Kein Apology. Kein Verhandeln. Du bist ein Profi, kein Discount-Service.</div>
+          </div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <button class="acc-trigger" onclick="toggleAcc(this)"><span>8 · Close</span><span class="acc-arrow">▼</span></button>
+        <div class="acc-content">
+          <div class="script-block"><div class="script-lbl">Closing-Fragen</div>"Was brauchst du noch, um eine Entscheidung zu treffen?"<br><br>— Pause —<br><br>"Wenn alles passt — wollen wir jetzt einen Start-Termin festlegen?"</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:12px">Kein "Also was denkst du?" — das gibt ihnen eine Tür raus. Frag direkt nach dem nächsten Schritt.</div>
+        </div>
+      </div>
+    </div><!-- /sub-sales -->
+
+  </div><!-- /tab-outreach -->
 
   <!-- ===== MINDSET ===== -->
   <div id="tab-mindset" class="tab-panel">
 
     <div class="goal-card">
       <div class="gc-tag">Dein Warum</div>
-      <div class="gc-goal empty" id="gc-goal">Noch kein Ziel gesetzt — geh zum Pipeline-Tab.</div>
+      <div class="gc-goal empty" id="gc-goal">Noch kein Ziel gesetzt — geh zum Outreach-Tab.</div>
       <div class="gc-consequence" id="gc-consequence"></div>
     </div>
 
@@ -432,7 +466,7 @@
           <div style="font-size:40px;margin-bottom:20px">🔥</div>
           <h2>Jetzt loslegen.</h2>
           <p>Kein besserer Zeitpunkt als dieser.</p>
-          <button class="btn btn-primary" onclick="switchTab('pipeline');resetMindset()">→ Pipeline öffnen</button>
+          <button class="btn btn-primary" onclick="switchTab('outreach');resetMindset()">→ Outreach öffnen</button>
           <br><br>
           <button class="btn btn-ghost btn-sm" onclick="resetMindset()">Nochmal</button>
         </div>
@@ -515,80 +549,6 @@
     </div>
   </div>
 
-  <!-- ===== REVIEW ===== -->
-  <div id="tab-review" class="tab-panel">
-    <div id="sat-banner" class="sat-banner">📋 Es ist Samstag — Zeit für dein Weekly Review. Mach's jetzt, solange es frisch ist.</div>
-    <div class="sec-h">Weekly Review</div>
-    <div class="sec-sub">Muster erkennen, nicht Scham erzeugen.</div>
-
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-label">Funnel</div>
-      <div id="funnel-wrap"><div class="empty-state" style="padding:8px 0;font-size:13px">Noch keine Daten.</div></div>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-num" id="week-sent">0</div><div class="stat-lbl">DMs diese Woche</div></div>
-      <div class="stat-card"><div class="stat-num" id="week-streak">0</div><div class="stat-lbl">Aktueller Streak</div></div>
-      <div class="stat-card"><div class="stat-num" id="week-total-dms" style="font-size:28px">0</div><div class="stat-lbl">DMs Gesamt</div></div>
-      <div class="stat-card"><div class="stat-num" id="week-reply-rate" style="font-size:22px;color:var(--muted)">—</div><div class="stat-lbl">Reply Rate (letzte Woche)</div></div>
-    </div>
-
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-label">Pipeline Snapshot</div>
-      <div id="rev-pipeline-snap"><div class="empty-state" style="padding:6px 0;font-size:13px">Noch keine Prospects.</div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Diese Woche</div>
-      <div class="fg"><label>Antworten erhalten</label><input type="number" id="r-replies" min="0" placeholder="0"></div>
-      <div class="fg"><label>Calls gebucht</label><input type="number" id="r-calls" min="0" placeholder="0"></div>
-      <div class="fg"><label>Ergebnis der Calls (kurz)</label><textarea id="r-outcomes" placeholder="z.B. 1 Call, nicht geschlossen wegen Preis. 1 Call nächste Woche."></textarea></div>
-      <div class="fg"><label>Was hat diese Woche gut funktioniert?</label><textarea id="r-wins" placeholder="Was willst du nächste Woche wiederholen?" style="min-height:70px"></textarea></div>
-      <div class="fg"><label>Was habe ich vermieden — und warum?</label><textarea id="r-avoid" placeholder="Sei ehrlich. Das ist für dich, nicht für jemand anderen." style="min-height:90px"></textarea></div>
-      <button class="btn btn-primary btn-full" onclick="saveReview(this)">Review speichern</button>
-    </div>
-    <div class="card" id="proj-card" style="display:none">
-      <div class="card-label">Hochrechnung</div>
-      <div id="proj-text" style="font-size:14px;color:var(--secondary);line-height:1.7"></div>
-    </div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-label">Datensicherung</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Exportiere deine Daten als JSON-Datei — importiere sie auf jedem Gerät zurück.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick="exportData()">Export ↓</button>
-        <label class="btn btn-ghost btn-sm" style="cursor:pointer">Import ↑<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
-      </div>
-      <div id="import-ok" class="copy-ok" style="display:block;margin-top:8px"></div>
-    </div>
-
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-label">Google Drive Sync</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Sichert alle Daten automatisch alle 60 Sekunden in dein Google Drive.</div>
-      <div id="drive-sync-badge" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px">☁ Nicht verbunden</div>
-      <div class="fg" id="drive-client-id-wrap">
-        <label style="font-size:11px;color:var(--muted)">Google Client ID</label>
-        <input type="text" id="drive-client-id" placeholder="xxx.apps.googleusercontent.com" style="font-size:12px">
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" id="drive-connect-btn" onclick="connectDrive()">☁ Drive verbinden</button>
-        <button class="btn btn-sm" id="drive-disconnect-btn" style="display:none;background:var(--red);color:#fff" onclick="disconnectDrive()">Trennen</button>
-      </div>
-      <details style="margin-top:14px">
-        <summary style="font-size:12px;color:var(--muted);cursor:pointer">Setup-Anleitung (einmalig, 5 Min)</summary>
-        <div style="font-size:12px;color:var(--secondary);margin-top:10px;line-height:1.8">
-          1. Gehe zu <a href="https://console.cloud.google.com" target="_blank" style="color:var(--accent)">console.cloud.google.com</a> → Neues Projekt<br>
-          2. APIs & Dienste → Bibliothek → <strong>Google Drive API</strong> aktivieren<br>
-          3. OAuth-Zustimmungsbildschirm → Extern → App-Name eingeben → Speichern<br>
-          4. Anmeldedaten → + Anmeldedaten erstellen → OAuth-Client-ID → Typ: <strong>Webanwendung</strong><br>
-          5. Autorisierte JavaScript-Ursprünge: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">null</code> hinzufügen (für lokale Dateien)<br>
-          6. Client-ID oben einfügen und "Drive verbinden" klicken
-        </div>
-      </details>
-    </div>
-
-    <div id="past-reviews"></div>
-  </div>
-
   <!-- ===== ZIELE (MANIFEST) ===== -->
   <div id="tab-ziele" class="tab-panel">
 
@@ -618,7 +578,7 @@
 
     <div class="goal-banner" id="zl-banner">
       <div class="goal-banner-tag">Primärziel</div>
-      <div class="goal-banner-main empty" id="zl-main">Setze dein Ziel im Pipeline-Tab → ✎</div>
+      <div class="goal-banner-main empty" id="zl-main">Setze dein Ziel im Outreach-Tab → ✎</div>
       <div class="goal-banner-days" id="zl-days"></div>
       <div class="goal-banner-hint" style="margin-top:8px"><button class="btn btn-ghost btn-xs" onclick="editGoalFromZiele()">Ziel bearbeiten ✎</button></div>
       <div id="zl-xp-bar" class="xp-bar-wrap"></div>
@@ -735,34 +695,83 @@
 
   </div>
 
-  <!-- ===== TAGESPLAN ===== -->
-  <div id="tab-tagesplan" class="tab-panel">
+  <!-- ===== REVIEW ===== -->
+  <div id="tab-review" class="tab-panel">
+    <div id="sat-banner" class="sat-banner">📋 Es ist Samstag — Zeit für dein Weekly Review. Mach's jetzt, solange es frisch ist.</div>
+    <div class="sec-h">Weekly Review</div>
+    <div class="sec-sub">Muster erkennen, nicht Scham erzeugen.</div>
 
-    <div class="med-card">
-      <div class="med-card-lbl">Meditation</div>
-      <div class="med-card-title">Box Breathing</div>
-      <div class="med-card-sub">4 Sek. einatmen · 4 halten · 4 ausatmen · 4 halten</div>
-      <div class="med-row">
-        <select id="med-duration" style="width:auto;padding:8px 12px;font-size:13px">
-          <option value="5">5 Min</option>
-          <option value="10" selected>10 Min</option>
-          <option value="15">15 Min</option>
-          <option value="20">20 Min</option>
-        </select>
-        <button class="btn btn-purple btn-sm" onclick="startMeditationFromSelect()">Jetzt meditieren</button>
-      </div>
-      <div id="med-done-msg" class="med-done-msg">✓ Meditation abgeschlossen — als erledigt markiert.</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-label">Funnel</div>
+      <div id="funnel-wrap"><div class="empty-state" style="padding:8px 0;font-size:13px">Noch keine Daten.</div></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num" id="week-sent">0</div><div class="stat-lbl">DMs diese Woche</div></div>
+      <div class="stat-card"><div class="stat-num" id="week-streak">0</div><div class="stat-lbl">Aktueller Streak</div></div>
+      <div class="stat-card"><div class="stat-num" id="week-total-dms" style="font-size:28px">0</div><div class="stat-lbl">DMs Gesamt</div></div>
+      <div class="stat-card"><div class="stat-num" id="week-reply-rate" style="font-size:22px;color:var(--muted)">—</div><div class="stat-lbl">Reply Rate (letzte Woche)</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-label">Pipeline Snapshot</div>
+      <div id="rev-pipeline-snap"><div class="empty-state" style="padding:6px 0;font-size:13px">Noch keine Prospects.</div></div>
     </div>
 
     <div class="card">
-      <div class="card-label">Dein Tagesplan</div>
-      <div id="tl-wrap" class="tl-wrap"></div>
+      <div class="card-label">Diese Woche</div>
+      <div class="fg"><label>Antworten erhalten</label><input type="number" id="r-replies" min="0" placeholder="0"></div>
+      <div class="fg"><label>Calls gebucht</label><input type="number" id="r-calls" min="0" placeholder="0"></div>
+      <div class="fg"><label>Ergebnis der Calls (kurz)</label><textarea id="r-outcomes" placeholder="z.B. 1 Call, nicht geschlossen wegen Preis. 1 Call nächste Woche."></textarea></div>
+      <div class="fg"><label>Was hat diese Woche gut funktioniert?</label><textarea id="r-wins" placeholder="Was willst du nächste Woche wiederholen?" style="min-height:70px"></textarea></div>
+      <div class="fg"><label>Was habe ich vermieden — und warum?</label><textarea id="r-avoid" placeholder="Sei ehrlich. Das ist für dich, nicht für jemand anderen." style="min-height:90px"></textarea></div>
+      <button class="btn btn-primary btn-full" onclick="saveReview(this)">Review speichern</button>
+    </div>
+    <div class="card" id="proj-card" style="display:none">
+      <div class="card-label">Hochrechnung</div>
+      <div id="proj-text" style="font-size:14px;color:var(--secondary);line-height:1.7"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-label">Datensicherung</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Exportiere deine Daten als JSON-Datei — importiere sie auf jedem Gerät zurück.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="exportData()">Export ↓</button>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer">Import ↑<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
+      </div>
+      <div id="import-ok" class="copy-ok" style="display:block;margin-top:8px"></div>
     </div>
 
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-label">Google Drive Sync</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Sichert alle Daten automatisch alle 60 Sekunden in dein Google Drive.</div>
+      <div id="drive-sync-badge" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px">☁ Nicht verbunden</div>
+      <div class="fg" id="drive-client-id-wrap">
+        <label style="font-size:11px;color:var(--muted)">Google Client ID</label>
+        <input type="text" id="drive-client-id" placeholder="xxx.apps.googleusercontent.com" style="font-size:12px">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="drive-connect-btn" onclick="connectDrive()">☁ Drive verbinden</button>
+        <button class="btn btn-sm" id="drive-disconnect-btn" style="display:none;background:var(--red);color:#fff" onclick="disconnectDrive()">Trennen</button>
+      </div>
+      <details style="margin-top:14px">
+        <summary style="font-size:12px;color:var(--muted);cursor:pointer">Setup-Anleitung (einmalig, 5 Min)</summary>
+        <div style="font-size:12px;color:var(--secondary);margin-top:10px;line-height:1.8">
+          1. Gehe zu <a href="https://console.cloud.google.com" target="_blank" style="color:var(--accent)">console.cloud.google.com</a> → Neues Projekt<br>
+          2. APIs &amp; Dienste → Bibliothek → <strong>Google Drive API</strong> aktivieren<br>
+          3. OAuth-Zustimmungsbildschirm → Extern → App-Name eingeben → Speichern<br>
+          4. Anmeldedaten → + Anmeldedaten erstellen → OAuth-Client-ID → Typ: <strong>Webanwendung</strong><br>
+          5. Autorisierte JavaScript-Ursprünge: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">null</code> hinzufügen (für lokale Dateien)<br>
+          6. Client-ID oben einfügen und "Drive verbinden" klicken
+        </div>
+      </details>
+    </div>
+
+    <div id="past-reviews"></div>
   </div>
 
 </div><!-- /app -->
 
+<!-- XP Toast -->
 <div id="xp-toast" class="xp-toast"><div class="xp-toast-inner"><div class="xp-toast-icon" id="xp-toast-icon">⚡</div><div class="xp-toast-body"><div class="xp-toast-title" id="xp-toast-title"></div><div class="xp-toast-sub" id="xp-toast-sub"></div></div></div></div>
 
 <!-- ===== MEDITATION OVERLAY ===== -->
@@ -783,6 +792,29 @@
   <div class="med-phase-sub" id="med-phase-sub">Atme langsam ein…</div>
   <div class="med-total-prog" id="med-total-prog"></div>
   <button class="btn btn-ghost btn-sm" onclick="cancelMeditation()">Abbrechen</button>
+</div>
+
+<!-- ===== ACHIEVEMENT FLOAT WIDGET ===== -->
+<div class="ach-float" id="ach-float" onclick="openAchievementOverlay()">
+  <span style="font-size:18px;line-height:1">🏆</span>
+  <div style="display:flex;flex-direction:column;gap:1px">
+    <div class="ach-float-level" id="ach-float-level">Lv. 1</div>
+    <div class="ach-float-count" id="ach-float-count">0 / 0</div>
+  </div>
+</div>
+
+<!-- ===== ACHIEVEMENT OVERLAY ===== -->
+<div id="ach-overlay" class="ach-overlay">
+  <div class="ach-overlay-hdr">
+    <div style="flex:1;min-width:0">
+      <div class="ach-overlay-title">🏆 Achievements</div>
+      <div id="ach-overlay-xp" style="margin-top:6px"></div>
+    </div>
+    <button class="ach-overlay-close" onclick="closeAchievementOverlay()">✕</button>
+  </div>
+  <div class="ach-overlay-body">
+    <div id="ach-overlay-list"></div>
+  </div>
 </div>
 
 <script src="app.js"></script>

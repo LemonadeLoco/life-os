@@ -6,7 +6,8 @@ const SK={
   nonneg:'fpcm_nonneg',milestones:'fpcm_milestones',content:'fpcm_content',
   xp:'fpcm_xp',reasons:'fpcm_reasons',nnStreak:'fpcm_nnStreak',
   driveToken:'fpcm_driveToken',driveFileId:'fpcm_driveFileId',driveClientId:'fpcm_driveClientId',
-  stateLog:'phq_stateLog',morningRitual:'phq_morningRitual',manifesto:'phq_manifesto',affirmations:'phq_affirmations'
+  stateLog:'phq_stateLog',morningRitual:'phq_morningRitual',manifesto:'phq_manifesto',affirmations:'phq_affirmations',
+  paperRitual:'phq_paperRitual',morningStreak:'phq_morningStreak',perfectDays:'phq_perfectDays'
 };
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch(e){return d;}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
@@ -140,7 +141,7 @@ function renderMission(){
     gcGoal.textContent=m.goal+(m.deadline?' · bis '+fmtDate(m.deadline):'');
     gcGoal.className='gc-goal';
   } else {
-    gcGoal.textContent='Noch kein Ziel gesetzt — geh zum Pipeline-Tab.';
+    gcGoal.textContent='Noch kein Ziel gesetzt — geh zum Outreach-Tab.';
     gcGoal.className='gc-goal empty';
   }
   gcCons.textContent=m.consequence?'Wenn nicht: '+m.consequence:'';
@@ -653,10 +654,13 @@ function copyDM(){
 
 function dmToPipeline(){
   const name=document.getElementById('dm-name').value.trim();
-  switchTab('pipeline');
-  document.getElementById('add-form').style.display='block';
-  if(name)document.getElementById('ap-name').value=name;
-  setTimeout(()=>document.getElementById('ap-name').focus(),50);
+  switchTab('outreach');
+  setTimeout(()=>{
+    switchSubNav('pipeline');
+    document.getElementById('add-form').style.display='block';
+    if(name)document.getElementById('ap-name').value=name;
+    setTimeout(()=>document.getElementById('ap-name').focus(),50);
+  },50);
 }
 
 // ── ACCORDION ─────────────────────────────────────────────────────────────────
@@ -891,6 +895,16 @@ function saveNonNeg(key,val){
       awardXP(bonus[s.current]);
       showXPToast('+'+bonus[s.current]+' XP','🔥',s.current+'-Tage Streak!');
     }
+    const daysSent=getDays();
+    const m=getMission();
+    const sent=(daysSent[today]||[]).length;
+    if(sent>=(m.dailyTarget||20)){
+      const pd=load(SK.perfectDays,{dates:[]});
+      if(!pd.dates.includes(today)){
+        pd.dates.push(today);save(SK.perfectDays,pd);
+        awardXP(30);showXPToast('+30 XP','⭐','Perfekter Tag!');
+      }
+    }
     setTimeout(checkAutoAchievements,50);
   }
   renderStart();
@@ -1007,8 +1021,11 @@ function quickMove(id,newStage){
 }
 
 function editGoalFromZiele(){
-  switchTab('pipeline');
-  setTimeout(()=>{const e=document.getElementById('mission-edit');if(e&&e.style.display==='none')toggleMissionEdit();},50);
+  switchTab('outreach');
+  setTimeout(()=>{
+    switchSubNav('pipeline');
+    const e=document.getElementById('mission-edit');if(e&&e.style.display==='none')toggleMissionEdit();
+  },50);
 }
 
 // ── ZIELE TAB ─────────────────────────────────────────────────────────────────
@@ -1064,6 +1081,22 @@ function getMilestones(){
     {id:'ms_state10',text:'Frequency Rising',    xp:80, icon:'📈',autoKey:'state10',  rarity:'rare',     flavor:'10 State-Einträge',                 system:true,done:false,doneDate:null},
     {id:'ms_ritual1',text:'Morning Protocol',    xp:30, icon:'🌅',autoKey:'ritual1',  rarity:'common',   flavor:'Erstes Morgenritual abgeschlossen',  system:true,done:false,doneDate:null},
     {id:'ms_manif1', text:'Manifestor',          xp:100,icon:'📜',autoKey:'manif1',   rarity:'epic',     flavor:'Manifesto-Brief geschrieben',        system:true,done:false,doneDate:null},
+    // ── PAPER PROTOCOL ───────────────────────────────────────────────────────────
+    {id:'ms_paper1', text:'Paper Protocol',      xp:25, icon:'✍️',autoKey:'paper1',   rarity:'common',   flavor:'Tagesverträge zum ersten Mal auf Papier',system:true,done:false,doneDate:null},
+    {id:'ms_paper7', text:'Journal Habit',       xp:100,icon:'📓',autoKey:'paper7',   rarity:'rare',     flavor:'7x auf Papier geschrieben',              system:true,done:false,doneDate:null},
+    // ── PERFECT DAY ──────────────────────────────────────────────────────────────
+    {id:'ms_perf1',  text:'Perfect Day',         xp:50, icon:'⭐',autoKey:'perfect1', rarity:'rare',     flavor:'Workout + Meditation + Outreach an einem Tag',system:true,done:false,doneDate:null},
+    {id:'ms_perf7',  text:'Perfect Week',        xp:200,icon:'🌟',autoKey:'perfect7', rarity:'epic',     flavor:'7 perfekte Tage',                        system:true,done:false,doneDate:null},
+    // ── MORNING STREAK ────────────────────────────────────────────────────────────
+    {id:'ms_morn3',  text:'Early Bird',          xp:40, icon:'🌅',autoKey:'morning3', rarity:'common',   flavor:'3 Tage Morgenritual in Folge',           system:true,done:false,doneDate:null},
+    {id:'ms_morn14', text:'Morning Master',      xp:150,icon:'🔆',autoKey:'morning14',rarity:'epic',     flavor:'14 Tage Morgenritual in Folge',          system:true,done:false,doneDate:null},
+    // ── AFFIRMATIONS ──────────────────────────────────────────────────────────────
+    {id:'ms_aff1',   text:'I Am',                xp:20, icon:'💬',autoKey:'aff1',     rarity:'common',   flavor:'Erste Affirmation hinzugefügt',          system:true,done:false,doneDate:null},
+    {id:'ms_aff10',  text:'Affirmation Master',  xp:80, icon:'✨',autoKey:'aff10',    rarity:'rare',     flavor:'10 Affirmationen hinzugefügt',           system:true,done:false,doneDate:null},
+    // ── LEVEL MILESTONES ─────────────────────────────────────────────────────────
+    {id:'ms_lv3',    text:'Pipeline Builder',    xp:0,  icon:'🏗️',autoKey:'lv3',      rarity:'rare',     flavor:'Level 3 erreicht',                      system:true,done:false,doneDate:null},
+    {id:'ms_lv5',    text:'Closer',              xp:0,  icon:'🎯',autoKey:'lv5',      rarity:'epic',     flavor:'Level 5 erreicht',                      system:true,done:false,doneDate:null},
+    {id:'ms_lv8',    text:'Life Architect',      xp:0,  icon:'🏰',autoKey:'lv8',      rarity:'legendary',flavor:'Level 8 erreicht — das ist Seltenheit', system:true,done:false,doneDate:null},
   ];
   const saved=load(SK.milestones,null);
   if(!saved)return defaults;
@@ -1117,7 +1150,7 @@ function renderZiele(){
     mainEl.textContent=m.goal;
     mainEl.className='goal-banner-main';
   } else {
-    mainEl.textContent='Setze dein Ziel im Pipeline-Tab → ✎';
+    mainEl.textContent='Setze dein Ziel im Outreach-Tab → ✎';
     mainEl.className='goal-banner-main empty';
   }
   if(m.deadline){
@@ -1135,9 +1168,9 @@ function renderZiele(){
   renderXPBar();
 }
 
-function renderMilestones(){
+function renderMilestones(targetId){
   const milestones=getMilestones();
-  const listEl=document.getElementById('milestone-list');
+  const listEl=document.getElementById(targetId||'milestone-list');
   if(!milestones.length){listEl.innerHTML='<div class="empty-state" style="padding:12px 0">Noch keine Achievements.</div>';return;}
 
   const days=getDays();
@@ -1153,6 +1186,14 @@ function renderMilestones(){
   const lostTotal=prospects.filter(p=>p.stage==='lost').length;
   const reviewTotal=load(SK.reviews,[]).length;
   const nnCurStreak=load(SK.nnStreak,{current:0}).current;
+  const paperRitualData=load(SK.paperRitual,{count:0});
+  const paperCount=paperRitualData.count||0;
+  const perfectDaysData=load(SK.perfectDays,{dates:[]});
+  const perfectCount=(perfectDaysData.dates||[]).length;
+  const morningStreakData=load(SK.morningStreak,{current:0});
+  const morningStreakCurrent=morningStreakData.current||0;
+  const affCount=getAffirmations().length;
+  const currentLevel=computeLevel(getXP().total).level;
 
   const progressFor={
     dm1:{val:totalDMs,max:1},
@@ -1190,6 +1231,17 @@ function renderMilestones(){
     state10:{val:getStateLog().length,max:10},
     ritual1:{val:getMorningRitual().date===todayStr()&&getMorningRitual().stateRating?1:0,max:1},
     manif1:{val:getManifesto().trim().length>20?1:0,max:1},
+    paper1:{val:paperCount,max:1},
+    paper7:{val:paperCount,max:7},
+    perfect1:{val:perfectCount,max:1},
+    perfect7:{val:perfectCount,max:7},
+    morning3:{val:morningStreakCurrent,max:3},
+    morning14:{val:morningStreakCurrent,max:14},
+    aff1:{val:affCount,max:1},
+    aff10:{val:affCount,max:10},
+    lv3:{val:currentLevel,max:3},
+    lv5:{val:currentLevel,max:5},
+    lv8:{val:currentLevel,max:8},
   };
 
   const sysAchs=milestones.filter(ms=>ms.system);
@@ -1197,7 +1249,8 @@ function renderMilestones(){
   const unlockedCount=sysAchs.filter(ms=>ms.done).length;
 
   const badge=document.getElementById('ach-count-badge');
-  if(badge)badge.textContent=unlockedCount+' / '+sysAchs.length;
+  if(badge&&!targetId)badge.textContent=unlockedCount+' / '+sysAchs.length;
+  renderAchFloatWidget();
 
   listEl.innerHTML='';
 
@@ -1301,6 +1354,7 @@ function toggleMilestone(id,done){
   }
   renderMilestones();
   renderXPBar();
+  renderAchFloatWidget();
 }
 
 function deleteMilestone(id){
@@ -1324,6 +1378,15 @@ function checkAutoAchievements(){
   const lostTotal=prospects.filter(p=>p.stage==='lost').length;
   const reviewTotal=load(SK.reviews,[]).length;
   const nnCurStreak=load(SK.nnStreak,{current:0}).current;
+
+  const paperRitualData=load(SK.paperRitual,{count:0});
+  const paperCount=paperRitualData.count||0;
+  const perfectDaysData=load(SK.perfectDays,{dates:[]});
+  const perfectCount=(perfectDaysData.dates||[]).length;
+  const morningStreakData=load(SK.morningStreak,{current:0});
+  const morningStreakCurrent=morningStreakData.current||0;
+  const affCount=getAffirmations().length;
+  const currentLevel=computeLevel(getXP().total).level;
 
   const conditions={
     dm1:totalDMs>=1,
@@ -1361,6 +1424,17 @@ function checkAutoAchievements(){
     state10:getStateLog().length>=10,
     ritual1:getMorningRitual().date===todayStr()&&!!getMorningRitual().stateRating,
     manif1:getManifesto().trim().length>20,
+    paper1:paperCount>=1,
+    paper7:paperCount>=7,
+    perfect1:perfectCount>=1,
+    perfect7:perfectCount>=7,
+    morning3:morningStreakCurrent>=3,
+    morning14:morningStreakCurrent>=14,
+    aff1:affCount>=1,
+    aff10:affCount>=10,
+    lv3:currentLevel>=3,
+    lv5:currentLevel>=5,
+    lv8:currentLevel>=8,
   };
 
   const newlyUnlocked=[];
@@ -1384,7 +1458,7 @@ function checkAutoAchievements(){
         },80);
       },i*500);
     });
-    setTimeout(()=>{renderMilestones();renderXPBar();},100);
+    setTimeout(()=>{renderMilestones();renderXPBar();renderAchFloatWidget();},100);
   }
 }
 
@@ -1550,7 +1624,7 @@ function saveStateEntry(){
   const noteEl=document.getElementById('state-log-note');
   if(!slider)return;
   const rating=parseInt(slider.value);
-  const tags=[...document.querySelectorAll('#tab-state .state-tag.active')].map(t=>t.dataset.tag);
+  const tags=[...document.querySelectorAll('#tab-start .state-tag.active')].map(t=>t.dataset.tag);
   const entry={ts:Date.now(),rating,note:(noteEl?.value||'').trim(),tags};
   const log=getStateLog();log.push(entry);save(SK.stateLog,log);
   if(noteEl)noteEl.value='';
@@ -1610,6 +1684,14 @@ function completeMorningRitual(){
   const mr=getMorningRitual();
   if(!mr.stateRating){alert('Bitte zuerst deinen State bewerten (Schritt 1).');return;}
   saveMorningGratitudes();saveMorningContracts();
+  const today=todayStr();
+  const mStreak=load(SK.morningStreak,{current:0,best:0,lastDate:null});
+  if(mStreak.lastDate!==today){
+    mStreak.current=mStreak.lastDate===yesterdayStr()?mStreak.current+1:1;
+    mStreak.best=Math.max(mStreak.best,mStreak.current);
+    mStreak.lastDate=today;
+    save(SK.morningStreak,mStreak);
+  }
   awardXP(20);showXPToast('+20 XP','🌅','Morgenritual abgeschlossen!');
   setTimeout(checkAutoAchievements,100);
 }
@@ -1626,6 +1708,7 @@ function renderMorningRitual(){
     const textEl=document.getElementById('contract-'+i);const cbEl=document.getElementById('contract-cb-'+i);
     if(textEl)textEl.value=c.text;if(cbEl)cbEl.checked=c.done;
   });
+  restorePaperButtons();
 }
 
 // ── MANIFESTO ─────────────────────────────────────────────────────────────────
@@ -1692,18 +1775,23 @@ function renderAffirmations(){
 }
 
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────────
-const TABS=['start','state','pipeline','dms','ziele','tagesplan','sales','mindset','review'];
+const TABS=['start','outreach','mindset','ziele','review'];
 function switchTab(tab){
   document.querySelectorAll('.tab-btn').forEach((btn,i)=>btn.classList.toggle('active',TABS[i]===tab));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='review'){updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();document.getElementById('sat-banner').classList.toggle('visible',new Date().getDay()===6);}
   if(tab==='mindset'){renderMission();renderAffirmations();}
-  if(tab==='pipeline')renderMission();
+  if(tab==='outreach'){renderMission();renderPipeline();renderTemplates();}
   if(tab==='start')renderStart();
   if(tab==='ziele'){renderZiele();renderManifesto();}
-  if(tab==='tagesplan')renderTagesplan();
-  if(tab==='state')renderStateLog();
+}
+
+function switchSubNav(sub){
+  document.querySelectorAll('.sub-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sub===sub));
+  document.querySelectorAll('.sub-panel').forEach(p=>p.classList.remove('active'));
+  const panel=document.getElementById('sub-'+sub);
+  if(panel)panel.classList.add('active');
 }
 
 // ── EXPORT / IMPORT ───────────────────────────────────────────────────────────
@@ -1771,6 +1859,72 @@ function renderAll(){
   renderMission();renderPipeline();renderTemplates();renderStarred();
   updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();renderStart();renderZiele();
   renderReasonCards();renderXPBar();renderMorningRitual();renderStateLog();renderManifesto();renderAffirmations();
+  renderAchFloatWidget();
+}
+
+// ── ACHIEVEMENT FLOAT WIDGET ──────────────────────────────────────────────────
+function renderAchFloatWidget(){
+  const lvlEl=document.getElementById('ach-float-level');
+  const cntEl=document.getElementById('ach-float-count');
+  if(!lvlEl||!cntEl)return;
+  const xpData=getXP();const lvl=computeLevel(xpData.total);
+  lvlEl.textContent='Lv. '+lvl.level;
+  const milestones=getMilestones();
+  const sys=milestones.filter(ms=>ms.system);
+  cntEl.textContent=sys.filter(ms=>ms.done).length+' / '+sys.length;
+}
+
+function openAchievementOverlay(){
+  const overlay=document.getElementById('ach-overlay');
+  if(!overlay)return;
+  overlay.classList.add('active');
+  renderMilestones('ach-overlay-list');
+  const xpData=getXP();const lvl=computeLevel(xpData.total);
+  const xpEl=document.getElementById('ach-overlay-xp');
+  if(xpEl)xpEl.innerHTML='<span style="font-size:13px;color:var(--amber)">⚡ Level '+lvl.level+' — '+lvl.name+' · '+xpData.total+' XP</span>';
+}
+
+function closeAchievementOverlay(){
+  document.getElementById('ach-overlay')?.classList.remove('active');
+}
+
+// ── DONE ON PAPER ─────────────────────────────────────────────────────────────
+function doneOnPaper(type){
+  const btnId=type==='contracts'?'paper-done-contracts':'paper-done-gratitude';
+  const btn=document.getElementById(btnId);
+  if(!btn||btn.classList.contains('done'))return;
+  btn.classList.add('done');
+  btn.textContent='✍️ Papier ✓';
+  const xp=type==='contracts'?15:10;
+  awardXP(xp);
+  showXPToast('+'+xp+' XP','✍️',type==='contracts'?'Tagesverträge auf Papier!':'Dankbarkeit auf Papier!');
+  const pr=load(SK.paperRitual,{count:0,lastDate:null,todayTypes:[]});
+  const today=todayStr();
+  if(pr.lastDate!==today){pr.count=(pr.count||0)+1;pr.lastDate=today;pr.todayTypes=[type];}
+  else if(!pr.todayTypes.includes(type)){pr.todayTypes.push(type);}
+  save(SK.paperRitual,pr);
+  setTimeout(checkAutoAchievements,100);
+}
+function restorePaperButtons(){
+  const pr=load(SK.paperRitual,{count:0,lastDate:null,todayTypes:[]});
+  if(pr.lastDate===todayStr()&&pr.todayTypes){
+    pr.todayTypes.forEach(type=>{
+      const btnId=type==='contracts'?'paper-done-contracts':'paper-done-gratitude';
+      const btn=document.getElementById(btnId);
+      if(btn){btn.classList.add('done');btn.textContent='✍️ Papier ✓';}
+    });
+  }
+}
+
+// ── TOGGLE TAGESPLAN ──────────────────────────────────────────────────────────
+function toggleTagesplan(){
+  const section=document.getElementById('tagesplan-section');
+  const toggle=document.getElementById('tagesplan-toggle');
+  if(!section||!toggle)return;
+  const isOpen=section.classList.contains('open');
+  section.classList.toggle('open',!isOpen);
+  toggle.classList.toggle('open',!isOpen);
+  if(!isOpen)renderTagesplan();
 }
 
 // ── GOOGLE DRIVE SYNC ─────────────────────────────────────────────────────────
@@ -1907,6 +2061,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderStateLog();
   renderManifesto();
   renderAffirmations();
+  renderAchFloatWidget();
   startTimelineUpdater();
   setTimeout(checkAutoAchievements,200);
   const savedCid=load(SK.driveClientId,null);
