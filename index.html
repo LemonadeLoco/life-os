@@ -18,16 +18,48 @@
 </head>
 <body>
 <div class="app">
-  <div class="hdr"><div class="hdr-title">Life OS</div></div>
-
-  <!-- ── 5-TAB NAVIGATION ── -->
-  <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('start')">Morgen</button>
-    <button class="tab-btn" onclick="switchTab('outreach')">Outreach</button>
-    <button class="tab-btn" onclick="switchTab('mindset')">Mindset</button>
-    <button class="tab-btn" onclick="switchTab('ziele')">Ziele</button>
-    <button class="tab-btn" onclick="switchTab('review')">Review</button>
+  <div class="hdr">
+    <div class="hdr-logo">
+      <svg class="hdr-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="28" height="28" rx="7" fill="#0d0d0d"/>
+        <path d="M14 4L14 6M7 14H5M23 14H21M9.17 9.17L7.76 7.76M18.83 9.17L20.24 7.76" stroke="#f59e0b" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="14" cy="14" r="4" stroke="#f59e0b" stroke-width="1.8"/>
+        <path d="M5 20h18M8 20a6 6 0 0 1 12 0" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <span class="hdr-title">Life OS</span>
+    </div>
+    <div class="hdr-right">
+      <button class="hdr-settings-btn" onclick="openSettings()" title="Einstellungen">
+        <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
   </div>
+
+  <!-- ── BOTTOM NAVIGATION ── -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="start" onclick="switchTab('start')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2v2M4.93 4.93l1.41 1.41M2 12h2M20 12h2M17.66 6.34l1.41-1.41"/><circle cx="12" cy="12" r="4"/><path d="M4 19h16M8 19a4 4 0 0 1 8 0"/></svg>
+      <span class="nav-label">Morgen</span>
+      <span class="nav-dot" id="nav-dot-start"></span>
+    </button>
+    <button class="nav-item" data-tab="outreach" onclick="switchTab('outreach')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+      <span class="nav-label">Outreach</span>
+      <span class="nav-dot" id="nav-dot-outreach"></span>
+    </button>
+    <button class="nav-item" data-tab="mindset" onclick="switchTab('mindset')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <span class="nav-label">Mindset</span>
+    </button>
+    <button class="nav-item" data-tab="ziele" onclick="switchTab('ziele')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      <span class="nav-label">Ziele</span>
+    </button>
+    <button class="nav-item" data-tab="review" onclick="switchTab('review')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="nav-label">Review</span>
+    </button>
+  </nav>
 
   <!-- ===== MORGEN (Start) ===== -->
   <div id="tab-start" class="tab-panel active">
@@ -814,6 +846,71 @@
   </div>
   <div class="ach-overlay-body">
     <div id="ach-overlay-list"></div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS OVERLAY ===== -->
+<div id="settings-overlay" class="settings-overlay">
+  <div class="settings-hdr">
+    <div class="settings-hdr-title">⚙ Einstellungen</div>
+    <button class="settings-close" onclick="closeSettings()">✕ Schließen</button>
+  </div>
+  <div class="settings-body">
+    <div class="settings-section-hdr">Outreach</div>
+    <div class="card">
+      <div class="fg">
+        <label>Tages-Ziel (DMs)</label>
+        <input type="number" id="st-daily" min="1" max="200" value="20">
+      </div>
+    </div>
+
+    <div class="settings-section-hdr">State Tracking</div>
+    <div class="card">
+      <div class="fg" style="margin-bottom:0">
+        <label>State-Erinnerung — automatischer Popup</label>
+        <select id="st-state-int">
+          <option value="2">Alle 2 Stunden</option>
+          <option value="3" selected>Alle 3 Stunden</option>
+          <option value="4">Alle 4 Stunden</option>
+          <option value="6">Alle 6 Stunden</option>
+          <option value="0">Deaktiviert</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section-hdr">Morgenritual</div>
+    <div class="card">
+      <div class="fg" style="margin-bottom:0">
+        <label>XP-Verlust wenn Ritual nicht gemacht (pro verpasstem Tag)</label>
+        <select id="st-penalty">
+          <option value="0">Kein Verlust</option>
+          <option value="10" selected>−10 XP</option>
+          <option value="20">−20 XP</option>
+          <option value="30">−30 XP</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="saveSettings()">Speichern</button>
+    <div class="settings-note">Spielmechaniken (XP-Werte, Achievements, Level-Schwellen) sind nicht konfigurierbar — das ist der Punkt.</div>
+  </div>
+</div>
+
+<!-- ===== STATE POPUP ===== -->
+<div id="state-popup" class="state-popup">
+  <div class="state-popup-card">
+    <div class="state-popup-tag">State Check-In</div>
+    <div class="state-popup-q">Wie ist dein State gerade?</div>
+    <div class="state-big-num" id="sp-num" style="color:var(--accent)">7</div>
+    <input type="range" class="state-slider" id="sp-slider" min="1" max="10" value="7"
+           oninput="updateStatePopupDisplay(parseInt(this.value))">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px">
+      <span>1 Keller</span><span>5 Okay</span><span>10 Gott-Modus</span>
+    </div>
+    <div class="state-popup-actions">
+      <button class="btn btn-primary btn-full" onclick="submitStatePopup()">State loggen +5 XP</button>
+      <button class="btn btn-danger btn-full btn-sm" onclick="skipStatePopup()">Überspringen −5 XP</button>
+    </div>
   </div>
 </div>
 

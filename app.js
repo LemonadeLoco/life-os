@@ -7,7 +7,9 @@ const SK={
   xp:'fpcm_xp',reasons:'fpcm_reasons',nnStreak:'fpcm_nnStreak',
   driveToken:'fpcm_driveToken',driveFileId:'fpcm_driveFileId',driveClientId:'fpcm_driveClientId',
   stateLog:'phq_stateLog',morningRitual:'phq_morningRitual',manifesto:'phq_manifesto',affirmations:'phq_affirmations',
-  paperRitual:'phq_paperRitual',morningStreak:'phq_morningStreak',perfectDays:'phq_perfectDays'
+  paperRitual:'phq_paperRitual',morningStreak:'phq_morningStreak',perfectDays:'phq_perfectDays',
+  settings:'life_settings',dailyLock:'life_dailyLock',penaltyApplied:'life_penaltyApplied',
+  idbBackup:'life_idb_ts'
 };
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch(e){return d;}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
@@ -30,20 +32,33 @@ function detectPlatform(url){
 
 // ── XP / LEVELS ───────────────────────────────────────────────────────────────
 const LEVELS=[
-  {level:1,name:'Cold Caller',min:0,max:49},
-  {level:2,name:'DM Sender',min:50,max:149},
-  {level:3,name:'Pipeline Builder',min:150,max:349},
-  {level:4,name:'Reply Hunter',min:350,max:699},
-  {level:5,name:'Closer',min:700,max:1199},
-  {level:6,name:'Agency Pro',min:1200,max:1999},
-  {level:7,name:'Frequency Master',min:2000,max:3499},
-  {level:8,name:'Life Architect',min:3500,max:Infinity}
+  {level:1, name:'Cold Caller',     min:0,     max:49},
+  {level:2, name:'DM Sender',       min:50,    max:149},
+  {level:3, name:'Pipeline Builder',min:150,   max:349},
+  {level:4, name:'Reply Hunter',    min:350,   max:699},
+  {level:5, name:'Closer',          min:700,   max:1199},
+  {level:6, name:'Agency Pro',      min:1200,  max:1999},
+  {level:7, name:'Frequency Master',min:2000,  max:3999},
+  {level:8, name:'Life Architect',  min:4000,  max:6999},
+  {level:9, name:'Revenue Machine', min:7000,  max:10999},
+  {level:10,name:'Empire Builder',  min:11000, max:16999},
 ];
+const PRESTIGE_NAMES=['Shadow Walker','Dark Horse','Phantom Closer','Apex Operator','Legend','Myth','The 0.1%'];
 function computeLevel(xp){
-  const l=LEVELS.find(l=>xp<=l.max)||LEVELS[LEVELS.length-1];
-  const nextL=LEVELS[l.level]||null;
-  const pct=nextL?Math.min(100,Math.round(((xp-l.min)/(nextL.min-l.min))*100)):100;
-  return{level:l.level,name:l.name,pct,nextXP:nextL?nextL.min:null,prevXP:l.min};
+  const found=LEVELS.find(l=>xp<=l.max);
+  if(found){
+    const nextL=LEVELS[found.level]||null;
+    const pct=nextL?Math.min(100,Math.round(((xp-found.min)/(nextL.min-found.min))*100)):100;
+    return{level:found.level,name:found.name,pct,nextXP:nextL?nextL.min:null,prevXP:found.min};
+  }
+  const XP_PER_PRESTIGE=10000;
+  const prestigeIdx=Math.floor((xp-17000)/XP_PER_PRESTIGE);
+  const lvl=11+prestigeIdx;
+  const thisMin=17000+prestigeIdx*XP_PER_PRESTIGE;
+  const nextMin=thisMin+XP_PER_PRESTIGE;
+  const pct=Math.round(((xp-thisMin)/XP_PER_PRESTIGE)*100);
+  const name=PRESTIGE_NAMES[Math.min(prestigeIdx,PRESTIGE_NAMES.length-1)];
+  return{level:lvl,name,pct,nextXP:nextMin,prevXP:thisMin};
 }
 function getXP(){return load(SK.xp,{total:0,level:1});}
 let _toastTimer=null;
@@ -212,6 +227,7 @@ function incrementDailyCounter(name){
   if(days[today].length>=(m.dailyTarget||20))tryIncrementStreak();
   awardXP(1);
   renderStart();
+  updateNavDots();
   setTimeout(checkAutoAchievements,50);
 }
 
@@ -976,34 +992,30 @@ function renderStart(){
   const fpEl=document.getElementById('fu-panel');
   const flEl=document.getElementById('fu-list');
   if(fpEl&&flEl){
-    if(outreachDone){
-      const prospects=getProspects();
-      const fuP=prospects.filter(p=>
-        (p.stage==='dm_sent'&&p.followUpAt&&today>=p.followUpAt)||
-        p.stage==='followup'||p.stage==='loom'||
-        (p.stage==='loom_sent'&&p.followUpAt&&today>=p.followUpAt)
-      );
-      if(fuP.length){
-        fpEl.style.display='block';
-        flEl.innerHTML='';
-        fuP.forEach((p,i)=>{
-          const div=document.createElement('div');
-          div.style.cssText='padding:12px 0'+(i<fuP.length-1?';border-bottom:1px solid var(--border)':'');
-          div.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${STAGE_LABELS[p.stage]||p.stage}${p.followUpAt&&p.stage==='dm_sent'?' · fällig '+fmtDate(p.followUpAt):''}</div>
-            </div>
-            <select onchange="quickMove('${p.id}',this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;padding:5px 8px;cursor:pointer;outline:none">
-              <option value="">Nächster Schritt…</option>
-              ${STAGE_ORDER.filter(s=>s!==p.stage).map(s=>`<option value="${s}">${STAGE_LABELS[s]}</option>`).join('')}
-            </select>
-          </div>`;
-          flEl.appendChild(div);
-        });
-      } else {
-        fpEl.style.display='none';
-      }
+    const prospects=getProspects();
+    const fuP=prospects.filter(p=>
+      (p.stage==='dm_sent'&&p.followUpAt&&today>=p.followUpAt)||
+      p.stage==='followup'||p.stage==='loom'||
+      (p.stage==='loom_sent'&&p.followUpAt&&today>=p.followUpAt)
+    );
+    if(fuP.length){
+      fpEl.style.display='block';
+      flEl.innerHTML='';
+      fuP.forEach((p,i)=>{
+        const div=document.createElement('div');
+        div.style.cssText='padding:12px 0'+(i<fuP.length-1?';border-bottom:1px solid var(--border)':'');
+        div.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${STAGE_LABELS[p.stage]||p.stage}${p.followUpAt&&p.stage==='dm_sent'?' · fällig '+fmtDate(p.followUpAt):''}</div>
+          </div>
+          <select onchange="quickMove('${p.id}',this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;padding:5px 8px;cursor:pointer;outline:none">
+            <option value="">Nächster Schritt…</option>
+            ${STAGE_ORDER.filter(s=>s!==p.stage).map(s=>`<option value="${s}">${STAGE_LABELS[s]}</option>`).join('')}
+          </select>
+        </div>`;
+        flEl.appendChild(div);
+      });
     } else {
       fpEl.style.display='none';
     }
@@ -1018,6 +1030,7 @@ function quickMove(id,newStage){
   if(!newStage)return;
   moveProspect(id,newStage);
   renderStart();
+  updateNavDots();
 }
 
 function editGoalFromZiele(){
@@ -1094,9 +1107,21 @@ function getMilestones(){
     {id:'ms_aff1',   text:'I Am',                xp:20, icon:'💬',autoKey:'aff1',     rarity:'common',   flavor:'Erste Affirmation hinzugefügt',          system:true,done:false,doneDate:null},
     {id:'ms_aff10',  text:'Affirmation Master',  xp:80, icon:'✨',autoKey:'aff10',    rarity:'rare',     flavor:'10 Affirmationen hinzugefügt',           system:true,done:false,doneDate:null},
     // ── LEVEL MILESTONES ─────────────────────────────────────────────────────────
-    {id:'ms_lv3',    text:'Pipeline Builder',    xp:0,  icon:'🏗️',autoKey:'lv3',      rarity:'rare',     flavor:'Level 3 erreicht',                      system:true,done:false,doneDate:null},
-    {id:'ms_lv5',    text:'Closer',              xp:0,  icon:'🎯',autoKey:'lv5',      rarity:'epic',     flavor:'Level 5 erreicht',                      system:true,done:false,doneDate:null},
-    {id:'ms_lv8',    text:'Life Architect',      xp:0,  icon:'🏰',autoKey:'lv8',      rarity:'legendary',flavor:'Level 8 erreicht — das ist Seltenheit', system:true,done:false,doneDate:null},
+    {id:'ms_lv3',    text:'Pipeline Builder',    xp:0,   icon:'🏗️',autoKey:'lv3',      rarity:'rare',     flavor:'Level 3 erreicht',                       system:true,done:false,doneDate:null},
+    {id:'ms_lv5',    text:'Closer',              xp:0,   icon:'🎯',autoKey:'lv5',      rarity:'epic',     flavor:'Level 5 erreicht',                       system:true,done:false,doneDate:null},
+    {id:'ms_lv7',    text:'Frequency Master',    xp:0,   icon:'⚡',autoKey:'lv7',      rarity:'epic',     flavor:'Level 7 erreicht',                       system:true,done:false,doneDate:null},
+    {id:'ms_lv8',    text:'Life Architect',      xp:0,   icon:'🏰',autoKey:'lv8',      rarity:'legendary',flavor:'Level 8 erreicht — das ist Seltenheit',  system:true,done:false,doneDate:null},
+    {id:'ms_lv10',   text:'Empire Builder',      xp:0,   icon:'👑',autoKey:'lv10',     rarity:'legendary',flavor:'Level 10 erreicht — Top 1%',             system:true,done:false,doneDate:null},
+    // ── EXTRA STATE ────────────────────────────────────────────────────────────
+    {id:'ms_state25',text:'State Observer',      xp:100, icon:'🧠',autoKey:'state25',  rarity:'rare',     flavor:'25 State-Einträge',                      system:true,done:false,doneDate:null},
+    {id:'ms_state50',text:'Inner Compass',       xp:200, icon:'🧭',autoKey:'state50',  rarity:'epic',     flavor:'50 State-Einträge',                      system:true,done:false,doneDate:null},
+    // ── EXTRA STREAKS ──────────────────────────────────────────────────────────
+    {id:'ms_s30',    text:'Thirty Days',         xp:500, icon:'🌕',autoKey:'streak30', rarity:'legendary',flavor:'30 Tage DM-Streak — Legende',             system:true,done:false,doneDate:null},
+    // ── EXTRA DM ───────────────────────────────────────────────────────────────
+    {id:'ms_dm750',  text:'750 Strong',          xp:350, icon:'🦅',autoKey:'dm750',    rarity:'epic',     flavor:'750 DMs insgesamt',                      system:true,done:false,doneDate:null},
+    {id:'ms_dm30day',text:'Volume Monster',      xp:100, icon:'🌪️',autoKey:'dm30day',  rarity:'epic',     flavor:'30 DMs an einem Tag',                    system:true,done:false,doneDate:null},
+    // ── CLIENTS ────────────────────────────────────────────────────────────────
+    {id:'ms_won3',   text:'Agency Mode',         xp:1000,icon:'🏰',autoKey:'won3',     rarity:'legendary',flavor:'3 Kunden gewonnen — Agency läuft',        system:true,done:false,doneDate:null},
   ];
   const saved=load(SK.milestones,null);
   if(!saved)return defaults;
@@ -1434,7 +1459,15 @@ function checkAutoAchievements(){
     aff10:affCount>=10,
     lv3:currentLevel>=3,
     lv5:currentLevel>=5,
+    lv7:currentLevel>=7,
     lv8:currentLevel>=8,
+    lv10:currentLevel>=10,
+    state25:getStateLog().length>=25,
+    state50:getStateLog().length>=50,
+    streak30:streak.count>=30,
+    dm750:totalDMs>=750,
+    dm30day:todayDMs>=30,
+    won3:wonTotal>=3,
   };
 
   const newlyUnlocked=[];
@@ -1673,12 +1706,14 @@ function saveMorningGratitudes(){
   if(mr.date!==today)mr.date=today;
   mr.gratitudes=[document.getElementById('grat-1')?.value||'',document.getElementById('grat-2')?.value||'',document.getElementById('grat-3')?.value||''];
   save(SK.morningRitual,mr);
+  if(mr.gratitudes.some(g=>g.trim()))setDailyTaskDone('gratitude');
 }
 function saveMorningContracts(){
   const mr=getMorningRitual(),today=todayStr();
   if(mr.date!==today)mr.date=today;
   mr.contracts=[0,1,2].map(i=>({text:document.getElementById('contract-'+i)?.value||'',done:document.getElementById('contract-cb-'+i)?.checked||false}));
   save(SK.morningRitual,mr);
+  if(mr.contracts.some(c=>c.text.trim()))setDailyTaskDone('contracts');
 }
 function completeMorningRitual(){
   const mr=getMorningRitual();
@@ -1694,6 +1729,7 @@ function completeMorningRitual(){
   }
   awardXP(20);showXPToast('+20 XP','🌅','Morgenritual abgeschlossen!');
   setTimeout(checkAutoAchievements,100);
+  updateNavDots();
 }
 function renderMorningRitual(){
   const mr=getMorningRitual(),today=todayStr();
@@ -1777,7 +1813,7 @@ function renderAffirmations(){
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────────
 const TABS=['start','outreach','mindset','ziele','review'];
 function switchTab(tab){
-  document.querySelectorAll('.tab-btn').forEach((btn,i)=>btn.classList.toggle('active',TABS[i]===tab));
+  document.querySelectorAll('.nav-item').forEach(btn=>btn.classList.toggle('active',btn.dataset.tab===tab));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='review'){updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();document.getElementById('sat-banner').classList.toggle('visible',new Date().getDay()===6);}
@@ -2045,6 +2081,166 @@ async function driveRestoreIfEmpty(){
   }catch(e){alert('Restore fehlgeschlagen: '+e.message);}
 }
 
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+function getSettings(){
+  return load(SK.settings,{dailyTarget:20,stateReminderHours:4,xpPenalty:10});
+}
+function openSettings(){
+  const s=getSettings();
+  const el=document.getElementById('settings-overlay');if(!el)return;
+  const tEl=document.getElementById('st-daily');
+  const iEl=document.getElementById('st-state-int');
+  const pEl=document.getElementById('st-penalty');
+  if(tEl)tEl.value=s.dailyTarget;
+  if(iEl)iEl.value=s.stateReminderHours;
+  if(pEl)pEl.value=s.xpPenalty;
+  el.classList.add('active');
+}
+function closeSettings(){
+  document.getElementById('settings-overlay')?.classList.remove('active');
+}
+function saveSettings(){
+  const dailyTarget=parseInt(document.getElementById('st-daily')?.value)||20;
+  const s={
+    dailyTarget,
+    stateReminderHours:parseInt(document.getElementById('st-state-int')?.value)||4,
+    xpPenalty:parseInt(document.getElementById('st-penalty')?.value)||10
+  };
+  save(SK.settings,s);
+  // also persist dailyTarget into mission so renderStart picks it up
+  const m=getMission();m.dailyTarget=dailyTarget;save(SK.mission,m);
+  closeSettings();
+  showXPToast('Gespeichert','⚙️','Einstellungen übernommen');
+  renderStart();
+}
+
+// ── STATE POPUP ───────────────────────────────────────────────────────────────
+function updateStatePopupDisplay(val){
+  const el=document.getElementById('sp-num');if(el)el.textContent=val;
+}
+function submitStatePopup(){
+  const slider=document.getElementById('sp-slider');if(!slider)return;
+  const val=parseInt(slider.value);
+  const stateLog=getStateLog();
+  const now=new Date();
+  stateLog.push({ts:now.toISOString(),value:val,tags:[],note:''});
+  save(SK.stateLog,stateLog);
+  localStorage.setItem('life_lastStatePopup',now.toISOString());
+  document.getElementById('state-popup')?.classList.remove('active');
+  awardXP(5);
+  showXPToast('+5 XP','📊','State geloggt: '+val+'/10');
+  setTimeout(checkAutoAchievements,100);
+  renderStateLog();
+}
+function skipStatePopup(){
+  const penalty=getSettings().xpPenalty;
+  const xpData=getXP();
+  xpData.total=Math.max(0,xpData.total-penalty);
+  save(SK.xp,xpData);
+  localStorage.setItem('life_lastStatePopup',new Date().toISOString());
+  document.getElementById('state-popup')?.classList.remove('active');
+  showXPToast('-'+penalty+' XP','⚠️','State übersprungen — Kosten der Vermeidung');
+  renderXPBar();
+}
+function checkStatePopup(){
+  const s=getSettings();
+  const lastStr=localStorage.getItem('life_lastStatePopup');
+  if(lastStr){
+    const diffHours=(Date.now()-new Date(lastStr).getTime())/3600000;
+    if(diffHours<s.stateReminderHours)return;
+  }
+  document.getElementById('state-popup')?.classList.add('active');
+}
+function startStatePopupTimer(){
+  checkStatePopup();
+  setInterval(checkStatePopup,300000);
+}
+
+// ── ONCE-A-DAY LOCK ───────────────────────────────────────────────────────────
+function getDailyLock(){
+  return load(SK.dailyLock,{date:null,gratitudeDone:false,contractsDone:false});
+}
+function setDailyTaskDone(type){
+  const lock=getDailyLock(),today=todayStr();
+  if(lock.date!==today){lock.date=today;lock.gratitudeDone=false;lock.contractsDone=false;}
+  if(type==='gratitude')lock.gratitudeDone=true;
+  if(type==='contracts')lock.contractsDone=true;
+  save(SK.dailyLock,lock);
+}
+function applyMorningPenalties(){
+  const today=todayStr();
+  if(load(SK.penaltyApplied,null)===today)return;
+  save(SK.penaltyApplied,today);
+  const lock=getDailyLock();
+  const yesterday=yesterdayStr();
+  if(lock.date!==yesterday)return;
+  const penalty=getSettings().xpPenalty;
+  const missed=[];
+  if(!lock.gratitudeDone)missed.push('Dankbarkeit');
+  if(!lock.contractsDone)missed.push('Tagesverträge');
+  if(!missed.length)return;
+  const total=penalty*missed.length;
+  const xpData=getXP();
+  xpData.total=Math.max(0,xpData.total-total);
+  save(SK.xp,xpData);
+  setTimeout(()=>{
+    showXPToast('-'+total+' XP','⚠️','Gestern verpasst: '+missed.join(' + '));
+    renderXPBar();
+  },1200);
+}
+
+// ── INDEXEDDB BACKUP ──────────────────────────────────────────────────────────
+let _idb=null;
+function idbInit(){
+  if(!window.indexedDB)return;
+  const req=indexedDB.open('life_os_backup',1);
+  req.onupgradeneeded=e=>{
+    if(!e.target.result.objectStoreNames.contains('kv'))
+      e.target.result.createObjectStore('kv',{keyPath:'k'});
+  };
+  req.onsuccess=e=>{
+    _idb=e.target.result;
+    idbRestore();
+    setInterval(idbSave,30000);
+  };
+}
+function idbSave(){
+  if(!_idb)return;
+  const tx=_idb.transaction('kv','readwrite');
+  const store=tx.objectStore('kv');
+  Object.values(SK).forEach(k=>{
+    const v=localStorage.getItem(k);
+    if(v!==null)store.put({k,v});
+  });
+}
+function idbRestore(){
+  if(!_idb||localStorage.getItem('fpcm_prospects'))return;
+  const tx=_idb.transaction('kv','readonly');
+  const store=tx.objectStore('kv');
+  let count=0;
+  store.openCursor().onsuccess=e=>{
+    const cur=e.target.result;
+    if(cur){localStorage.setItem(cur.value.k,cur.value.v);count++;cur.continue();}
+    else if(count>0){renderAll();showXPToast('Daten wiederhergestellt','💾','IndexedDB Restore');}
+  };
+}
+
+// ── NAV DOTS ─────────────────────────────────────────────────────────────────
+function updateNavDots(){
+  const today=todayStr();
+  const prospects=getProspects();
+  const hasFu=prospects.some(p=>
+    (p.stage==='dm_sent'&&p.followUpAt&&today>=p.followUpAt)||
+    p.stage==='followup'||p.stage==='loom'||
+    (p.stage==='loom_sent'&&p.followUpAt&&today>=p.followUpAt)
+  );
+  const fuDot=document.getElementById('nav-dot-outreach');
+  if(fuDot)fuDot.style.display=hasFu?'block':'none';
+  const mr=getMorningRitual();
+  const startDot=document.getElementById('nav-dot-start');
+  if(startDot)startDot.style.display=(mr.date===today&&mr.stateRating)?'none':'block';
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   renderMission();
@@ -2069,4 +2265,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderDriveStatus();
   if(getDriveToken())startDriveAutoTimer();
   setTimeout(driveRestoreIfEmpty,500);
+  applyMorningPenalties();
+  idbInit();
+  startStatePopupTimer();
+  updateNavDots();
 });
