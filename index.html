@@ -14,7 +14,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Life OS">
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div class="app">
@@ -64,13 +63,10 @@
   <!-- ===== MORGEN (Start) ===== -->
   <div id="tab-start" class="tab-panel active">
 
-    <div class="card" style="border-color:rgba(245,158,11,.35);margin-bottom:14px">
-      <div class="card-label" style="color:var(--amber)">Schritt 1 — State bewerten</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Wie ist dein State? (1 = Keller · 10 = Gott-Modus)</div>
-      <div class="state-num-display" id="morning-state-num" style="color:var(--muted)">—</div>
-      <input type="range" class="state-slider" id="morning-state-slider" min="1" max="10" value="5"
-             oninput="saveMorningState(parseInt(this.value))">
-      <div class="state-warning" id="morning-state-warning">State unter 8 — erst auf 8 bringen, dann arbeiten. Nutze die Atemübung oder Dankbarkeit darunter.</div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-label">Schritt 1 — Entspannungsatmung</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">5 Atemzüge: Max. einatmen → Max. ausatmen, so langsam wie möglich.</div>
+      <button class="btn btn-purple btn-sm" onclick="startMeditationTimer(3)">Atemübung starten (3 Min)</button>
     </div>
 
     <div class="card" style="margin-bottom:14px">
@@ -86,36 +82,24 @@
     </div>
 
     <div class="card" style="margin-bottom:14px">
-      <div class="card-label">Schritt 3 — Entspannungsatmung</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">5 Atemzüge: Max. einatmen → Max. ausatmen, so langsam wie möglich.</div>
-      <button class="btn btn-purple btn-sm" onclick="startMeditationTimer(3)">Atemübung starten (3 Min)</button>
-    </div>
-
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-label">Schritt 4 — Tagesverträge</div>
+      <div class="card-label">Schritt 3 — Tagesverträge</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">3 spezifische Commitments. Verträge — kein Verhandeln.</div>
       <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-0" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-0" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
       <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-1" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-1" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
       <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-2" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-2" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
-      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-amber btn-sm" onclick="completeMorningRitual()">Morgenritual abschließen +20 XP</button>
+      <div style="margin-top:14px">
         <button class="btn btn-paper btn-sm" id="paper-done-contracts" onclick="doneOnPaper('contracts')">✍️ Auf Papier +15 XP</button>
       </div>
     </div>
 
-    <div class="dual-csq-grid">
-      <div class="csq-card csq-card-green">
-        <div class="csq-card-lbl csq-card-lbl-green">Wenn ich es mache:</div>
-        <div id="csq-do-wrap"><ul class="csq-list" id="csq-do-list"></ul></div>
-        <textarea id="ta-do" class="csq-ta" style="display:none" onclick="event.stopPropagation()"></textarea>
-        <button class="csq-edit-inline-btn" onclick="editReasonList('do')" title="Bearbeiten">✎</button>
-      </div>
-      <div class="csq-card csq-card-red">
-        <div class="csq-card-lbl csq-card-lbl-red">Wenn ich es nicht mache:</div>
-        <div id="csq-dont-wrap"><ul class="csq-list" id="csq-dont-list"></ul></div>
-        <textarea id="ta-dont" class="csq-ta" style="display:none" onclick="event.stopPropagation()"></textarea>
-        <button class="csq-edit-inline-btn" onclick="editReasonList('dont')" title="Bearbeiten">✎</button>
-      </div>
+    <div class="card" style="border-color:rgba(245,158,11,.35);margin-bottom:14px">
+      <div class="card-label" style="color:var(--amber)">Schritt 4 — Wie ist dein State?</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Rate nach dem Ritual ehrlich — das setzt deinen Baseline für den Tag.</div>
+      <div class="state-num-display" id="morning-state-num" style="color:var(--muted)">—</div>
+      <input type="range" class="state-slider" id="morning-state-slider" min="1" max="10" value="5"
+             oninput="saveMorningState(parseInt(this.value))">
+      <div class="state-warning" id="morning-state-warning">State unter 8 — nutze die Mindset Sequenz vor dem Outreach.</div>
+      <button class="btn btn-amber btn-sm" style="margin-top:14px" onclick="completeMorningRitual()">Morgenritual abschließen +20 XP</button>
     </div>
 
     <div class="card">
@@ -157,36 +141,6 @@
 
     <button id="outreach-btn" class="btn btn-amber btn-full" style="margin-bottom:10px" onclick="switchTab('outreach')">Jetzt Outreach starten →</button>
     <button id="clickup-btn" class="btn btn-ghost btn-full locked" onclick="openClickUp()">ClickUp öffnen</button>
-
-    <!-- ── QUICK STATE LOG ── -->
-    <div class="card" style="margin-top:20px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="card-label" style="margin-bottom:0">State jetzt loggen</div>
-        <span style="font-size:11px;color:var(--muted)">2–3x täglich</span>
-      </div>
-      <div class="state-big-num" id="state-now-num" style="color:var(--muted)">7</div>
-      <input type="range" class="state-slider" id="state-log-slider" min="1" max="10" value="7"
-             oninput="updateStateNowDisplay(parseInt(this.value))">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px"><span>1 Keller</span><span>5 Okay</span><span>10 Gott-Modus</span></div>
-      <div class="fg" style="margin-bottom:10px">
-        <input type="text" id="state-log-note" placeholder="Was hat deinen State beeinflusst? (optional)">
-      </div>
-      <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:4px">
-        <span class="state-tag" data-tag="Musik" onclick="toggleStateTag(this)">Musik</span>
-        <span class="state-tag" data-tag="Sport" onclick="toggleStateTag(this)">Sport</span>
-        <span class="state-tag" data-tag="Essen" onclick="toggleStateTag(this)">Essen</span>
-        <span class="state-tag" data-tag="Client Call" onclick="toggleStateTag(this)">Client Call</span>
-        <span class="state-tag" data-tag="Outreach" onclick="toggleStateTag(this)">Outreach</span>
-        <span class="state-tag" data-tag="Menschen" onclick="toggleStateTag(this)">Menschen</span>
-        <span class="state-tag" data-tag="Schlecht geschlafen" onclick="toggleStateTag(this)">Schlechter Schlaf</span>
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="saveStateEntry()">State loggen +5 XP</button>
-    </div>
-
-    <div class="card" style="margin-bottom:4px">
-      <div class="card-label">Heute</div>
-      <div id="state-today-log"><div class="empty-state">Noch keine Einträge heute.</div></div>
-    </div>
 
     <!-- ── COLLAPSIBLE TAGESPLAN ── -->
     <button class="tagesplan-toggle" id="tagesplan-toggle" onclick="toggleTagesplan()">
@@ -258,6 +212,28 @@
         </div>
       </div>
 
+      <details class="mein-warum-details" style="margin-bottom:12px">
+        <summary class="mein-warum-summary">Mein Warum — Konsequenzen ▸</summary>
+        <div class="dual-csq-grid" style="margin-top:12px">
+          <div class="csq-card csq-card-green">
+            <div class="csq-card-lbl csq-card-lbl-green">Wenn ich es mache:</div>
+            <div id="csq-do-wrap"><ul class="csq-list" id="csq-do-list"></ul></div>
+            <textarea id="ta-do" class="csq-ta" style="display:none" onclick="event.stopPropagation()"></textarea>
+            <button class="csq-edit-inline-btn" onclick="editReasonList('do')" title="Bearbeiten">✎</button>
+          </div>
+          <div class="csq-card csq-card-red">
+            <div class="csq-card-lbl csq-card-lbl-red">Wenn ich es nicht mache:</div>
+            <div id="csq-dont-wrap"><ul class="csq-list" id="csq-dont-list"></ul></div>
+            <textarea id="ta-dont" class="csq-ta" style="display:none" onclick="event.stopPropagation()"></textarea>
+            <button class="csq-edit-inline-btn" onclick="editReasonList('dont')" title="Bearbeiten">✎</button>
+          </div>
+        </div>
+      </details>
+
+      <div style="margin-bottom:10px">
+        <input type="search" id="prospect-search" class="prospect-search" placeholder="🔍 Prospect suchen…" oninput="renderPipeline()">
+      </div>
+
       <div class="stage-filter" id="stage-filter">
         <button class="sf-pill active" data-filter="all" onclick="setFilter('all')">Alle <span class="sf-count" id="ct-all">0</span></button>
         <button class="sf-pill" data-filter="dm_sent" onclick="setFilter('dm_sent')">DM <span class="sf-count" id="ct-dm_sent">0</span></button>
@@ -292,6 +268,7 @@
           </select>
         </div>
         <div class="fg"><label>Notizen (optional)</label><textarea id="ap-notes" placeholder="Was habe ich an ihrem Profil gesehen? Was war der Hook?" rows="2" style="min-height:60px"></textarea></div>
+        <div class="fg"><label>Link (optional)</label><input type="url" id="ap-link" placeholder="https://instagram.com/…"></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" onclick="submitAddProspect()">Hinzufügen</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleAddForm()">Abbrechen</button>
@@ -579,6 +556,42 @@
       </div>
       <div id="aff-list"><div class="empty-state">Noch keine Affirmationen. Füge deine erste hinzu.</div></div>
     </div>
+
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-label" style="margin-bottom:0">State Check-In</div>
+        <span style="font-size:11px;color:var(--muted)">2–3x täglich</span>
+      </div>
+      <div class="state-big-num" id="state-now-num" style="color:var(--muted)">7</div>
+      <input type="range" class="state-slider" id="state-log-slider" min="1" max="10" value="7"
+             oninput="updateStateNowDisplay(parseInt(this.value))">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px"><span>1 Keller</span><span>5 Okay</span><span>10 Gott-Modus</span></div>
+      <div class="fg" style="margin-bottom:10px">
+        <input type="text" id="state-log-note" placeholder="Was hat deinen State beeinflusst? (optional)">
+      </div>
+      <div id="state-log-tags" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:4px">
+        <span class="state-tag" data-tag="Musik" onclick="toggleStateTag(this)">Musik</span>
+        <span class="state-tag" data-tag="Sport" onclick="toggleStateTag(this)">Sport</span>
+        <span class="state-tag" data-tag="Essen" onclick="toggleStateTag(this)">Essen</span>
+        <span class="state-tag" data-tag="Client Call" onclick="toggleStateTag(this)">Client Call</span>
+        <span class="state-tag" data-tag="Outreach" onclick="toggleStateTag(this)">Outreach</span>
+        <span class="state-tag" data-tag="Menschen" onclick="toggleStateTag(this)">Menschen</span>
+        <span class="state-tag" data-tag="Schlecht geschlafen" onclick="toggleStateTag(this)">Schlechter Schlaf</span>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveStateEntry()">State loggen +5 XP</button>
+    </div>
+
+    <div class="card" style="margin-bottom:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="card-label" style="margin-bottom:0">Heute</div>
+        <button class="btn btn-ghost btn-xs" onclick="toggleStateHistory(this)">Verlauf</button>
+      </div>
+      <div id="state-today-log"><div class="empty-state">Noch keine Einträge heute.</div></div>
+      <div id="state-history-wrap" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Alle Einträge</div>
+        <div id="state-full-history"></div>
+      </div>
+    </div>
   </div>
 
   <!-- ===== ZIELE (MANIFEST) ===== -->
@@ -773,31 +786,6 @@
       <div id="import-ok" class="copy-ok" style="display:block;margin-top:8px"></div>
     </div>
 
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-label">Google Drive Sync</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Sichert alle Daten automatisch alle 60 Sekunden in dein Google Drive.</div>
-      <div id="drive-sync-badge" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px">☁ Nicht verbunden</div>
-      <div class="fg" id="drive-client-id-wrap">
-        <label style="font-size:11px;color:var(--muted)">Google Client ID</label>
-        <input type="text" id="drive-client-id" placeholder="xxx.apps.googleusercontent.com" style="font-size:12px">
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" id="drive-connect-btn" onclick="connectDrive()">☁ Drive verbinden</button>
-        <button class="btn btn-sm" id="drive-disconnect-btn" style="display:none;background:var(--red);color:#fff" onclick="disconnectDrive()">Trennen</button>
-      </div>
-      <details style="margin-top:14px">
-        <summary style="font-size:12px;color:var(--muted);cursor:pointer">Setup-Anleitung (einmalig, 5 Min)</summary>
-        <div style="font-size:12px;color:var(--secondary);margin-top:10px;line-height:1.8">
-          1. Gehe zu <a href="https://console.cloud.google.com" target="_blank" style="color:var(--accent)">console.cloud.google.com</a> → Neues Projekt<br>
-          2. APIs &amp; Dienste → Bibliothek → <strong>Google Drive API</strong> aktivieren<br>
-          3. OAuth-Zustimmungsbildschirm → Extern → App-Name eingeben → Speichern<br>
-          4. Anmeldedaten → + Anmeldedaten erstellen → OAuth-Client-ID → Typ: <strong>Webanwendung</strong><br>
-          5. Autorisierte JavaScript-Ursprünge: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">null</code> hinzufügen (für lokale Dateien)<br>
-          6. Client-ID oben einfügen und "Drive verbinden" klicken
-        </div>
-      </details>
-    </div>
-
     <div id="past-reviews"></div>
   </div>
 
@@ -904,9 +892,19 @@
     <div class="state-big-num" id="sp-num" style="color:var(--accent)">7</div>
     <input type="range" class="state-slider" id="sp-slider" min="1" max="10" value="7"
            oninput="updateStatePopupDisplay(parseInt(this.value))">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:10px">
       <span>1 Keller</span><span>5 Okay</span><span>10 Gott-Modus</span>
     </div>
+    <div id="sp-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
+      <span class="state-tag" data-tag="Musik" onclick="toggleStateTag(this)">Musik</span>
+      <span class="state-tag" data-tag="Sport" onclick="toggleStateTag(this)">Sport</span>
+      <span class="state-tag" data-tag="Essen" onclick="toggleStateTag(this)">Essen</span>
+      <span class="state-tag" data-tag="Client Call" onclick="toggleStateTag(this)">Client Call</span>
+      <span class="state-tag" data-tag="Outreach" onclick="toggleStateTag(this)">Outreach</span>
+      <span class="state-tag" data-tag="Menschen" onclick="toggleStateTag(this)">Menschen</span>
+      <span class="state-tag" data-tag="Schlecht geschlafen" onclick="toggleStateTag(this)">Schlechter Schlaf</span>
+    </div>
+    <textarea id="sp-note" rows="2" placeholder="Was hat deinen State beeinflusst? (optional)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:10px;resize:none;font-family:inherit;outline:none"></textarea>
     <div class="state-popup-actions">
       <button class="btn btn-primary btn-full" onclick="submitStatePopup()">State loggen +5 XP</button>
       <button class="btn btn-danger btn-full btn-sm" onclick="skipStatePopup()">Überspringen −5 XP</button>

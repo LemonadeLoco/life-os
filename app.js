@@ -244,12 +244,13 @@ function submitAddProspect(){
   const type=document.getElementById('ap-type').value;
   const stage=document.getElementById('ap-stage').value;
   const notes=document.getElementById('ap-notes').value.trim();
+  const link=(document.getElementById('ap-link')?.value||'').trim();
   const today=todayStr();
   const fuDate=new Date();fuDate.setDate(fuDate.getDate()+3);
   const prospect={
     id:Date.now().toString(),
     name,type,stage,notes,
-    loomUrl:'',msgCount:0,links:[],
+    loomUrl:'',msgCount:0,links:link&&link.startsWith('http')?[link]:[],
     createdAt:today,
     followUpAt:stage==='dm_sent'?fuDate.toISOString().split('T')[0]:null,
     history:[{action:STAGE_LABELS[stage]||stage,date:today,ts:Date.now()}]
@@ -262,6 +263,7 @@ function submitAddProspect(){
   document.getElementById('ap-type').value='';
   document.getElementById('ap-stage').value='dm_sent';
   document.getElementById('ap-notes').value='';
+  const apLink=document.getElementById('ap-link');if(apLink)apLink.value='';
   document.getElementById('add-form').style.display='none';
   renderPipeline();
   renderMission();
@@ -340,7 +342,13 @@ function renderPipeline(){
   if(fuPill){fuPill.classList.toggle('alert',fuDue>0&&activeFilter!=='followup');}
   if(loomPill){loomPill.classList.toggle('alert',loomCount>0&&activeFilter!=='loom');}
   if(loomSentPill){loomSentPill.classList.toggle('alert',loomSentDue>0&&activeFilter!=='loom_sent');}
-  const filtered=activeFilter==='all'?prospects:prospects.filter(p=>p.stage===activeFilter);
+  const searchVal=(document.getElementById('prospect-search')?.value||'').toLowerCase().trim();
+  let filtered=activeFilter==='all'?prospects:prospects.filter(p=>p.stage===activeFilter);
+  if(searchVal)filtered=filtered.filter(p=>
+    p.name.toLowerCase().includes(searchVal)||
+    (p.type||'').toLowerCase().includes(searchVal)||
+    (p.notes||'').toLowerCase().includes(searchVal)
+  );
   const listEl=document.getElementById('prospect-list');
   if(!filtered.length){
     listEl.innerHTML='<div class="empty-state">'+(activeFilter==='all'?'Noch keine Prospects. Fang an zu schreiben.':'Keine Prospects in dieser Phase.')+'</div>';
@@ -935,8 +943,6 @@ function renderStart(){
   const isSunday=new Date().getDay()===0;
   const outreachDone=isSunday||sent>=target;
   const nn=getNonNeg();
-
-  renderReasonCards();
 
   const wEl=document.getElementById('nn-workout');
   if(wEl){wEl.checked=!!nn.workout;document.getElementById('nn-item-workout').classList.toggle('done',!!nn.workout);}
@@ -1657,11 +1663,11 @@ function saveStateEntry(){
   const noteEl=document.getElementById('state-log-note');
   if(!slider)return;
   const rating=parseInt(slider.value);
-  const tags=[...document.querySelectorAll('#tab-start .state-tag.active')].map(t=>t.dataset.tag);
+  const tags=[...document.querySelectorAll('#state-log-tags .state-tag.active')].map(t=>t.dataset.tag);
   const entry={ts:Date.now(),rating,note:(noteEl?.value||'').trim(),tags};
   const log=getStateLog();log.push(entry);save(SK.stateLog,log);
   if(noteEl)noteEl.value='';
-  document.querySelectorAll('#tab-state .state-tag').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#state-log-tags .state-tag').forEach(t=>t.classList.remove('active'));
   awardXP(5);showXPToast('+5 XP','📊','State geloggt');
   renderStateLog();
   setTimeout(checkAutoAchievements,100);
@@ -1684,6 +1690,31 @@ function renderStateLog(){
       <div class="state-log-rating" style="color:${c}">${e.rating}</div>
     </div>`;
   }).join('');
+}
+
+function toggleStateHistory(btn){
+  const wrap=document.getElementById('state-history-wrap');if(!wrap)return;
+  const isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  if(btn)btn.textContent=isOpen?'Verlauf':'Schließen';
+  if(!isOpen){
+    const log=getStateLog();
+    const el=document.getElementById('state-full-history');if(!el)return;
+    if(!log.length){el.innerHTML='<div class="empty-state">Noch keine Einträge.</div>';return;}
+    const byDay={};
+    log.forEach(e=>{const d=new Date(e.ts).toISOString().split('T')[0];if(!byDay[d])byDay[d]=[];byDay[d].push(e);});
+    el.innerHTML=Object.keys(byDay).sort().reverse().map(d=>{
+      const entries=byDay[d].slice().reverse();
+      const c=entries[entries.length-1]?.rating;const col=c>=8?'var(--green)':c>=6?'#facc15':c>=4?'var(--amber)':'var(--red)';
+      return`<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">${fmtDate(d)}</div>`+
+        entries.map(e=>{
+          const t=new Date(e.ts);const timeStr=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+          const tags=(e.tags||[]).map(tag=>`<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);margin-right:3px">${esc(tag)}</span>`).join('');
+          const cr=e.rating>=8?'var(--green)':e.rating>=6?'#facc15':e.rating>=4?'var(--amber)':'var(--red)';
+          return`<div class="state-log-entry"><div class="state-log-time">${timeStr}</div><div class="state-log-note">${e.note?esc(e.note):'<span style="color:var(--muted);font-style:italic">—</span>'}<div style="margin-top:4px">${tags}</div></div><div class="state-log-rating" style="color:${cr}">${e.rating}</div></div>`;
+        }).join('')+'</div>';
+    }).join('');
+  }
 }
 
 // ── MORNING RITUAL ────────────────────────────────────────────────────────────
@@ -1717,7 +1748,7 @@ function saveMorningContracts(){
 }
 function completeMorningRitual(){
   const mr=getMorningRitual();
-  if(!mr.stateRating){alert('Bitte zuerst deinen State bewerten (Schritt 1).');return;}
+  if(!mr.stateRating){alert('Bitte zuerst deinen State bewerten (Schritt 4).');return;}
   saveMorningGratitudes();saveMorningContracts();
   const today=todayStr();
   const mStreak=load(SK.morningStreak,{current:0,best:0,lastDate:null});
@@ -1817,8 +1848,8 @@ function switchTab(tab){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='review'){updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();document.getElementById('sat-banner').classList.toggle('visible',new Date().getDay()===6);}
-  if(tab==='mindset'){renderMission();renderAffirmations();}
-  if(tab==='outreach'){renderMission();renderPipeline();renderTemplates();}
+  if(tab==='mindset'){renderMission();renderAffirmations();renderStateLog();}
+  if(tab==='outreach'){renderMission();renderPipeline();renderTemplates();renderReasonCards();}
   if(tab==='start')renderStart();
   if(tab==='ziele'){renderZiele();renderManifesto();}
 }
@@ -1895,7 +1926,7 @@ function renderAll(){
   renderMission();renderPipeline();renderTemplates();renderStarred();
   updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();renderStart();renderZiele();
   renderReasonCards();renderXPBar();renderMorningRitual();renderStateLog();renderManifesto();renderAffirmations();
-  renderAchFloatWidget();
+  renderAchFloatWidget();updateNavDots();
 }
 
 // ── ACHIEVEMENT FLOAT WIDGET ──────────────────────────────────────────────────
@@ -1963,123 +1994,7 @@ function toggleTagesplan(){
   if(!isOpen)renderTagesplan();
 }
 
-// ── GOOGLE DRIVE SYNC ─────────────────────────────────────────────────────────
-let _driveAutoTimer=null;
-
-function getDriveToken(){
-  const t=load(SK.driveToken,null);
-  if(!t||Date.now()>t.expiry)return null;
-  return t.token;
-}
-
-function connectDrive(){
-  if(typeof google==='undefined'||!google.accounts){
-    alert('Google Identity Services noch nicht geladen. Bitte Seite neu laden und erneut versuchen.');return;
-  }
-  const clientId=(document.getElementById('drive-client-id')?.value||'').trim();
-  if(!clientId){alert('Bitte zuerst eine Google Client ID eingeben.');return;}
-  google.accounts.oauth2.initTokenClient({
-    client_id:clientId,
-    scope:'https://www.googleapis.com/auth/drive.file',
-    callback:(resp)=>{
-      if(resp.error){alert('Auth fehlgeschlagen: '+resp.error);return;}
-      const expiry=Date.now()+(resp.expires_in||3600)*1000-60000;
-      save(SK.driveToken,{token:resp.access_token,expiry});
-      save(SK.driveClientId,clientId);
-      renderDriveStatus();
-      driveAutoSave();
-      startDriveAutoTimer();
-      showXPToast('☁ Drive verbunden','☁','Auto-Sync aktiv');
-    }
-  }).requestAccessToken();
-}
-
-function disconnectDrive(){
-  save(SK.driveToken,null);
-  if(_driveAutoTimer){clearInterval(_driveAutoTimer);_driveAutoTimer=null;}
-  renderDriveStatus();
-}
-
-async function driveAutoSave(){
-  const token=getDriveToken();
-  if(!token){renderDriveStatus();return;}
-  const data={};
-  Object.values(SK).forEach(k=>{const v=localStorage.getItem(k);if(v!==null)try{data[k]=JSON.parse(v);}catch(e){data[k]=v;}});
-  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
-  const fileId=load(SK.driveFileId,null);
-  const badge=document.getElementById('drive-sync-badge');
-  try{
-    let id;
-    if(fileId){
-      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media',
-        {method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:blob});
-      if(r.status===401){save(SK.driveToken,null);renderDriveStatus();return;}
-      if(!r.ok)throw new Error('Update failed '+r.status);
-      id=fileId;
-    } else {
-      const meta={name:'outreach-agent-backup.json',description:'Auto-backup von Outreach Agent'};
-      const form=new FormData();
-      form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
-      form.append('file',blob);
-      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-        {method:'POST',headers:{'Authorization':'Bearer '+token},body:form});
-      if(r.status===401){save(SK.driveToken,null);renderDriveStatus();return;}
-      if(!r.ok)throw new Error('Create failed '+r.status);
-      const j=await r.json();id=j.id;
-      save(SK.driveFileId,id);
-    }
-    const now=new Date();
-    const timeStr=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    if(badge){badge.textContent='☁ Gespeichert '+timeStr;badge.style.color='var(--green)';}
-  }catch(e){
-    console.warn('Drive sync error',e);
-    if(badge){badge.textContent='☁ Sync-Fehler';badge.style.color='var(--red)';}
-  }
-}
-
-function startDriveAutoTimer(){
-  if(_driveAutoTimer)clearInterval(_driveAutoTimer);
-  _driveAutoTimer=setInterval(driveAutoSave,60000);
-}
-
-function renderDriveStatus(){
-  const token=getDriveToken();
-  const connectBtn=document.getElementById('drive-connect-btn');
-  const disconnBtn=document.getElementById('drive-disconnect-btn');
-  const badge=document.getElementById('drive-sync-badge');
-  const clientInput=document.getElementById('drive-client-id');
-  if(token){
-    if(connectBtn)connectBtn.style.display='none';
-    if(disconnBtn)disconnBtn.style.display='inline-flex';
-    if(badge&&badge.textContent.startsWith('☁ Nicht'))badge.textContent='☁ Verbunden';
-    if(badge)badge.style.color='var(--green)';
-    if(clientInput)clientInput.style.display='none';
-  } else {
-    if(connectBtn)connectBtn.style.display='inline-flex';
-    if(disconnBtn)disconnBtn.style.display='none';
-    if(badge){badge.textContent='☁ Nicht verbunden';badge.style.color='var(--muted)';}
-    if(clientInput)clientInput.style.display='block';
-  }
-}
-
-async function driveRestoreIfEmpty(){
-  const hasData=localStorage.getItem('fpcm_prospects');
-  if(hasData)return;
-  const token=getDriveToken();
-  if(!token)return;
-  const fileId=load(SK.driveFileId,null);
-  if(!fileId)return;
-  if(!confirm('Keine lokalen Daten gefunden. Aus Drive wiederherstellen?'))return;
-  try{
-    const r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',
-      {headers:{'Authorization':'Bearer '+token}});
-    if(!r.ok)throw new Error(r.status);
-    const data=await r.json();
-    Object.entries(data).forEach(([k,v])=>localStorage.setItem(k,JSON.stringify(v)));
-    renderAll();
-    showXPToast('☁ Wiederhergestellt','☁','Drive Restore erfolgreich');
-  }catch(e){alert('Restore fehlgeschlagen: '+e.message);}
-}
+// ── GOOGLE DRIVE SYNC (removed — IndexedDB backup is used instead) ────────────
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 function getSettings(){
@@ -2121,12 +2036,15 @@ function updateStatePopupDisplay(val){
 function submitStatePopup(){
   const slider=document.getElementById('sp-slider');if(!slider)return;
   const val=parseInt(slider.value);
+  const tags=[...document.querySelectorAll('#sp-tags .state-tag.active')].map(t=>t.dataset.tag);
+  const note=(document.getElementById('sp-note')?.value||'').trim();
   const stateLog=getStateLog();
-  const now=new Date();
-  stateLog.push({ts:now.toISOString(),value:val,tags:[],note:''});
+  stateLog.push({ts:Date.now(),rating:val,tags,note});
   save(SK.stateLog,stateLog);
-  localStorage.setItem('life_lastStatePopup',now.toISOString());
+  localStorage.setItem('life_lastStatePopup',new Date().toISOString());
   document.getElementById('state-popup')?.classList.remove('active');
+  document.querySelectorAll('#sp-tags .state-tag').forEach(t=>t.classList.remove('active'));
+  const noteEl=document.getElementById('sp-note');if(noteEl)noteEl.value='';
   awardXP(5);
   showXPToast('+5 XP','📊','State geloggt: '+val+'/10');
   setTimeout(checkAutoAchievements,100);
@@ -2260,11 +2178,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderAchFloatWidget();
   startTimelineUpdater();
   setTimeout(checkAutoAchievements,200);
-  const savedCid=load(SK.driveClientId,null);
-  if(savedCid){const el=document.getElementById('drive-client-id');if(el)el.value=savedCid;}
-  renderDriveStatus();
-  if(getDriveToken())startDriveAutoTimer();
-  setTimeout(driveRestoreIfEmpty,500);
   applyMorningPenalties();
   idbInit();
   startStatePopupTimer();

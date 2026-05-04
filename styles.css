@@ -92,6 +92,13 @@ textarea{resize:vertical;min-height:70px}
 .sf-pill.active .sf-count{background:rgba(255,255,255,.12)}
 .sf-pill.alert{border-color:var(--amber);color:var(--amber)}
 .sf-pill.alert .sf-count{background:var(--amber-dim);color:var(--amber)}
+.prospect-search{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 14px;outline:none;transition:border-color .15s}
+.prospect-search:focus{border-color:var(--accent)}
+.mein-warum-details{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.mein-warum-details[open]{border-color:rgba(245,158,11,.3)}
+.mein-warum-summary{font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--muted);cursor:pointer;list-style:none;user-select:none}
+.mein-warum-summary::-webkit-details-marker{display:none}
+.mein-warum-summary:hover{color:var(--amber)}
 
 /* ── STAGE BADGES ────────────────────────────────────────────────────────────── */
 .stage-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
