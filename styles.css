@@ -525,3 +525,6 @@ textarea{resize:vertical;min-height:70px}
   .bottom-nav{left:0;right:0;transform:none}
   .xp-toast{max-width:calc(100vw - 32px)}
 }
+
+/* ── KPI CHART ───────────────────────────────────────────────────────────────── */
+.kpi-btn.active{background:var(--surface2);color:var(--text);border-color:rgba(255,255,255,.2);font-weight:600}

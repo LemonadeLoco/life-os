@@ -66,7 +66,10 @@
     <div class="card" style="margin-bottom:14px">
       <div class="card-label">Schritt 1 — Entspannungsatmung</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">5 Atemzüge: Max. einatmen → Max. ausatmen, so langsam wie möglich.</div>
-      <button class="btn btn-purple btn-sm" onclick="startMeditationTimer(3)">Atemübung starten (3 Min)</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-purple btn-sm" onclick="startMeditationTimer(3)">Atemübung starten (3 Min)</button>
+        <button class="btn btn-ghost btn-sm" id="btn-breathing-without" onclick="breathingDoneWithout()">Fertig — ohne App +15 XP</button>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:14px">
@@ -583,8 +586,8 @@
 
     <div class="card" style="margin-bottom:4px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div class="card-label" style="margin-bottom:0">Heute</div>
-        <button class="btn btn-ghost btn-xs" onclick="toggleStateHistory(this)">Verlauf</button>
+        <div class="card-label" style="margin-bottom:0">Letzte Einträge</div>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="toggleStateHistory(this)">Verlauf anzeigen</button>
       </div>
       <div id="state-today-log"><div class="empty-state">Noch keine Einträge heute.</div></div>
       <div id="state-history-wrap" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
@@ -747,6 +750,21 @@
     <div class="sec-sub">Muster erkennen, nicht Scham erzeugen.</div>
 
     <div class="card" style="margin-bottom:16px">
+      <div class="card-label">KPI-Verlauf</div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="btn btn-ghost btn-xs kpi-btn active" data-kpi="dms" onclick="renderKPIChart('dms')">DMs</button>
+        <button class="btn btn-ghost btn-xs kpi-btn" data-kpi="state" onclick="renderKPIChart('state')">State</button>
+        <button class="btn btn-ghost btn-xs kpi-btn" data-kpi="streak" onclick="renderKPIChart('streak')">Streak</button>
+      </div>
+      <div id="kpi-chart-wrap"><div class="empty-state" style="padding:8px 0;font-size:13px">Noch keine Daten.</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-label">State-Verlauf</div>
+      <div id="state-analytics-wrap"><div class="empty-state" style="padding:8px 0;font-size:13px">Noch keine State-Daten.</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
       <div class="card-label">Funnel</div>
       <div id="funnel-wrap"><div class="empty-state" style="padding:8px 0;font-size:13px">Noch keine Daten.</div></div>
     </div>
@@ -850,19 +868,35 @@
         <label>Tages-Ziel (DMs)</label>
         <input type="number" id="st-daily" min="1" max="200" value="20">
       </div>
+      <div class="fg" style="margin-bottom:0">
+        <label>Standard Follow-up (Tage)</label>
+        <select id="st-followup">
+          <option value="1">1 Tag</option>
+          <option value="2">2 Tage</option>
+          <option value="3" selected>3 Tage</option>
+          <option value="4">4 Tage</option>
+          <option value="5">5 Tage</option>
+          <option value="7">7 Tage</option>
+          <option value="14">14 Tage</option>
+        </select>
+      </div>
     </div>
 
     <div class="settings-section-hdr">State Tracking</div>
     <div class="card">
-      <div class="fg" style="margin-bottom:0">
+      <div class="fg">
         <label>State-Erinnerung — automatischer Popup</label>
         <select id="st-state-int">
           <option value="2">Alle 2 Stunden</option>
-          <option value="3" selected>Alle 3 Stunden</option>
-          <option value="4">Alle 4 Stunden</option>
+          <option value="3">Alle 3 Stunden</option>
+          <option value="4" selected>Alle 4 Stunden</option>
           <option value="6">Alle 6 Stunden</option>
           <option value="0">Deaktiviert</option>
         </select>
+      </div>
+      <div class="fg" style="margin-bottom:0">
+        <label>Push-Benachrichtigungen (wenn App im Hintergrund)</label>
+        <button class="btn btn-ghost btn-sm" onclick="requestNotificationPermission()">Benachrichtigungen aktivieren 🔔</button>
       </div>
     </div>
 

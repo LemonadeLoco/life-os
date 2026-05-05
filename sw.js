@@ -1,4 +1,4 @@
-const CACHE = 'life-os-v1';
+const CACHE = 'life-os-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -27,5 +27,31 @@ self.addEventListener('fetch', e => {
   if (!e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
+  );
+});
+
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SHOW_NOTIFICATION') {
+    e.waitUntil(
+      self.registration.showNotification(e.data.title || 'Life OS', {
+        body: e.data.body || 'Zeit für deinen State Check-In.',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        tag: 'state-checkin',
+        renotify: true
+      })
+    );
+  }
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) return client.focus();
+      }
+      return clients.openWindow('/');
+    })
   );
 });

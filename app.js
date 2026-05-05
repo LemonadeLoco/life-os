@@ -61,9 +61,13 @@ function computeLevel(xp){
   return{level:lvl,name,pct,nextXP:nextMin,prevXP:thisMin};
 }
 function getXP(){return load(SK.xp,{total:0,level:1});}
-let _toastTimer=null;
-function showXPToast(title,icon,sub){
-  const el=document.getElementById('xp-toast');if(!el)return;
+let _toastQueue=[];
+let _toastBusy=false;
+function _processToastQueue(){
+  if(_toastBusy||!_toastQueue.length)return;
+  _toastBusy=true;
+  const{title,icon,sub}=_toastQueue.shift();
+  const el=document.getElementById('xp-toast');if(!el){_toastBusy=false;return;}
   const iconEl=document.getElementById('xp-toast-icon');
   const titleEl=document.getElementById('xp-toast-title');
   const subEl=document.getElementById('xp-toast-sub');
@@ -71,8 +75,15 @@ function showXPToast(title,icon,sub){
   if(titleEl)titleEl.textContent=title;
   if(subEl)subEl.textContent=sub||'';
   el.classList.add('visible');
-  if(_toastTimer)clearTimeout(_toastTimer);
-  _toastTimer=setTimeout(()=>el.classList.remove('visible'),3500);
+  setTimeout(()=>{
+    el.classList.remove('visible');
+    _toastBusy=false;
+    setTimeout(_processToastQueue,200);
+  },3500);
+}
+function showXPToast(title,icon,sub){
+  _toastQueue.push({title,icon,sub});
+  _processToastQueue();
 }
 function showAchievementToast(ms){
   const rarityLabel={common:'',rare:' · Rare',epic:' · Epic',legendary:' · LEGENDARY!'}[ms.rarity]||'';
@@ -246,7 +257,8 @@ function submitAddProspect(){
   const notes=document.getElementById('ap-notes').value.trim();
   const link=(document.getElementById('ap-link')?.value||'').trim();
   const today=todayStr();
-  const fuDate=new Date();fuDate.setDate(fuDate.getDate()+3);
+  const fuDays=getSettings().defaultFollowUp||3;
+  const fuDate=new Date();fuDate.setDate(fuDate.getDate()+fuDays);
   const prospect={
     id:Date.now().toString(),
     name,type,stage,notes,
@@ -277,18 +289,18 @@ function moveProspect(id,newStage){
   const p=prospects[idx];
   p.stage=newStage;
   p.history.push({action:STAGE_LABELS[newStage]||newStage,date:todayStr(),ts:Date.now()});
+  const _fuDays=getSettings().defaultFollowUp||3;
   if(newStage==='dm_sent'){
-    const d=new Date();d.setDate(d.getDate()+3);
+    const d=new Date();d.setDate(d.getDate()+_fuDays);
     p.followUpAt=d.toISOString().split('T')[0];
   }
   if(newStage==='loom_sent'){
-    const d=new Date();d.setDate(d.getDate()+3);
+    const d=new Date();d.setDate(d.getDate()+_fuDays);
     p.followUpAt=d.toISOString().split('T')[0];
   }
   saveProspects(prospects);
   if(newStage==='followup')incrementDailyCounter(p.name);
-  expandedId=null;
-  renderPipeline();
+  setFilter('all');
   renderMission();
   updateWeekStats();
   setTimeout(checkAutoAchievements,50);
@@ -299,6 +311,25 @@ function deleteProspect(id){
   saveProspects(getProspects().filter(p=>p.id!==id));
   if(expandedId===id)expandedId=null;
   renderPipeline();
+}
+
+function setProspectFollowUp(id,days){
+  const prospects=getProspects();
+  const p=prospects.find(x=>x.id===id);if(!p)return;
+  const d=new Date();d.setDate(d.getDate()+days);
+  p.followUpAt=d.toISOString().split('T')[0];
+  saveProspects(prospects);
+  renderPipeline();
+  updateNavDots();
+}
+
+function toggleFollowUpDropdown(id,btn){
+  const dd=document.getElementById('fu-dd-'+id);
+  if(!dd)return;
+  const isOpen=dd.style.display!=='none';
+  document.querySelectorAll('.fu-dropdown').forEach(el=>el.style.display='none');
+  if(!isOpen)dd.style.display='block';
+  btn.stopPropagation&&btn.stopPropagation();
 }
 
 let activeFilter='all';
@@ -366,7 +397,7 @@ function renderPipeline(){
     const ageMs=['won','lost'].includes(p.stage)?null:prospectAge(p);
     const ageColor=ageMs===null?'':ageMs<3*3600000?'var(--muted)':ageMs<24*3600000?'var(--amber)':'var(--red)';
     const ageChip=ageMs!==null?`<span style="font-size:10px;font-weight:700;color:${ageColor};background:var(--surface2);padding:2px 7px;border-radius:99px;flex-shrink:0">${fmtAge(ageMs)}</span>`:'';
-    const linkChips=(p.links&&p.links.length)?p.links.slice(0,3).map(u=>{const pl=detectPlatform(u);return`<span class="soc-badge ${pl.cls}" style="font-size:9px;padding:1px 5px">${pl.label}</span>`;}).join(''):'';
+    const linkChips=(p.links&&p.links.length)?p.links.slice(0,3).map(u=>{const pl=detectPlatform(u);return`<a href="${u}" target="_blank" rel="noopener noreferrer" class="soc-badge ${pl.cls}" style="font-size:9px;padding:1px 5px;text-decoration:none" onclick="event.stopPropagation()">${pl.label}</a>`;}).join(''):'';
     const msgCount=p.msgCount||0;
     const row=document.createElement('div');
     row.className='prospect-row';
@@ -484,6 +515,28 @@ function renderPipeline(){
       urlWrap.appendChild(urlLbl);
       urlWrap.appendChild(urlRow);
       expandedDiv.appendChild(urlWrap);
+    }
+    if(!['won','lost'].includes(p.stage)){
+      const fuWrap=document.createElement('div');
+      fuWrap.style.cssText='position:relative;margin-bottom:12px';
+      const defDays=getSettings().defaultFollowUp||3;
+      const fuDateDisplay=p.followUpAt?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${fmtDate(p.followUpAt)}</span>`:'';
+      fuWrap.innerHTML=`
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Follow-up${fuDateDisplay}</div>
+        <div style="display:flex;gap:0">
+          <button class="btn btn-ghost btn-xs" style="border-radius:6px 0 0 6px;flex:1;justify-content:center"
+            onclick="event.stopPropagation();setProspectFollowUp('${p.id}',${defDays})">
+            In ${defDays} Tag${defDays===1?'':'en'}
+          </button>
+          <button class="btn btn-ghost btn-xs" style="border-radius:0 6px 6px 0;border-left:1px solid var(--border);padding:0 8px"
+            onclick="event.stopPropagation();const dd=document.getElementById('fu-dd-${p.id}');dd.style.display=dd.style.display==='block'?'none':'block'">▾</button>
+        </div>
+        <div id="fu-dd-${p.id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,.4)">
+          ${[1,2,3,4,5,7,14].map(d=>`<div style="padding:7px 12px;font-size:13px;cursor:pointer;border-radius:5px;color:var(--text)"
+            onclick="event.stopPropagation();setProspectFollowUp('${p.id}',${d});document.getElementById('fu-dd-${p.id}').style.display='none'"
+            onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">${d} Tag${d===1?'':'e'}</div>`).join('')}
+        </div>`;
+      expandedDiv.appendChild(fuWrap);
     }
     const moveRow=document.createElement('div');
     moveRow.className='pr-move-row';
@@ -903,15 +956,21 @@ function updateNNStreak(){
 function saveNonNeg(key,val){
   const all=load(SK.nonneg,{});
   const today=todayStr();
-  if(!all[today])all[today]={workout:false,meditation:false};
+  if(!all[today])all[today]={workout:false,meditation:false,bonusGiven:false};
   const wasDone=!!all[today][key];
   all[today][key]=val;
-  save(SK.nonneg,all);
   if(val&&!wasDone){
+    save(SK.nonneg,all);
     awardXP(15);
     showXPToast('+15 XP','✅',key==='workout'?'Workout done!':'Meditation done!');
+  } else if(!val&&wasDone){
+    save(SK.nonneg,all);
+  } else {
+    save(SK.nonneg,all);
   }
-  if(val&&all[today].workout&&all[today].meditation){
+  if(val&&all[today].workout&&all[today].meditation&&!all[today].bonusGiven){
+    all[today].bonusGiven=true;
+    save(SK.nonneg,all);
     const s=updateNNStreak();
     awardXP(10);
     const bonus={3:20,7:50,14:100,30:200};
@@ -1306,7 +1365,7 @@ function renderMilestones(targetId){
     }
 
     const rarityBadge=`<span class="rarity-badge rarity-${rarity}">${rarity}</span>`;
-    const flavorHtml=ms.flavor&&!ms.done?`<div class="ach-flavor">${esc(ms.flavor)}</div>`:'';
+    const flavorHtml=ms.flavor?`<div class="ach-flavor">${esc(ms.flavor)}</div>`:'';
     const doneSubHtml=ms.done&&ms.doneDate?`<div class="ach-sub">✓ ${fmtDate(ms.doneDate)}</div>`:'';
 
     card.innerHTML=`
@@ -1675,20 +1734,30 @@ function saveStateEntry(){
 function renderStateLog(){
   const log=getStateLog();
   const today=todayStr();
-  const todayLog=log.filter(e=>new Date(e.ts).toISOString().split('T')[0]===today);
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-2);
+  const recentLog=log.filter(e=>new Date(e.ts)>=cutoff);
   const wrap=document.getElementById('state-today-log');
   if(!wrap)return;
-  if(!todayLog.length){wrap.innerHTML='<div class="empty-state">Noch keine Einträge heute. Logge deinen State!</div>';return;}
-  wrap.innerHTML=todayLog.slice().reverse().map(e=>{
-    const t=new Date(e.ts);
-    const timeStr=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-    const tags=(e.tags||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface);border:1px solid var(--border);margin-right:3px">${esc(tag)}</span>`).join('');
-    const c=e.rating>=8?'var(--green)':e.rating>=6?'#facc15':e.rating>=4?'var(--amber)':'var(--red)';
-    return `<div class="state-log-entry">
-      <div class="state-log-time">${timeStr}</div>
-      <div class="state-log-note">${e.note?esc(e.note):'<span style="color:var(--muted);font-style:italic">kein Text</span>'}<div style="margin-top:4px">${tags}</div></div>
-      <div class="state-log-rating" style="color:${c}">${e.rating}</div>
-    </div>`;
+  if(!recentLog.length){wrap.innerHTML='<div class="empty-state">Noch keine Einträge. Logge deinen State!</div>';return;}
+  const byDay={};
+  recentLog.forEach(e=>{const d=new Date(e.ts).toISOString().split('T')[0];if(!byDay[d])byDay[d]=[];byDay[d].push(e);});
+  wrap.innerHTML=Object.keys(byDay).sort().reverse().map(d=>{
+    const isToday=d===today;
+    const dayLabel=isToday?'Heute':fmtDate(d);
+    const entries=byDay[d].slice().reverse();
+    return`<div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">${dayLabel}</div>`+
+      entries.map(e=>{
+        const t=new Date(e.ts);
+        const timeStr=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+        const tags=(e.tags||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface);border:1px solid var(--border);margin-right:3px">${esc(tag)}</span>`).join('');
+        const c=e.rating>=8?'var(--green)':e.rating>=6?'#facc15':e.rating>=4?'var(--amber)':'var(--red)';
+        return`<div class="state-log-entry">
+          <div class="state-log-time">${timeStr}</div>
+          <div class="state-log-note">${e.note?esc(e.note):'<span style="color:var(--muted);font-style:italic">kein Text</span>'}<div style="margin-top:4px">${tags}</div></div>
+          <div class="state-log-rating" style="color:${c}">${e.rating}</div>
+        </div>`;
+      }).join('')+'</div>';
   }).join('');
 }
 
@@ -1757,10 +1826,24 @@ function completeMorningRitual(){
     mStreak.best=Math.max(mStreak.best,mStreak.current);
     mStreak.lastDate=today;
     save(SK.morningStreak,mStreak);
+    awardXP(20);showXPToast('+20 XP','🌅','Morgenritual abgeschlossen!');
+    scheduleStateNotification();
+  } else {
+    showXPToast('Bereits gemacht','🌅','Morgenritual heute schon abgeschlossen');
   }
-  awardXP(20);showXPToast('+20 XP','🌅','Morgenritual abgeschlossen!');
+  _markMorningRitualBtn();
   setTimeout(checkAutoAchievements,100);
   updateNavDots();
+}
+function _markMorningRitualBtn(){
+  const btn=document.querySelector('[onclick="completeMorningRitual()"]');
+  if(!btn)return;
+  btn.disabled=true;btn.style.opacity='.55';
+  btn.textContent='✓ Morgenritual abgeschlossen';
+}
+function _restoreMorningRitualBtn(){
+  const mStreak=load(SK.morningStreak,{current:0,best:0,lastDate:null});
+  if(mStreak.lastDate===todayStr())_markMorningRitualBtn();
 }
 function renderMorningRitual(){
   const mr=getMorningRitual(),today=todayStr();
@@ -1776,6 +1859,8 @@ function renderMorningRitual(){
     if(textEl)textEl.value=c.text;if(cbEl)cbEl.checked=c.done;
   });
   restorePaperButtons();
+  restoreBreathingButton();
+  _restoreMorningRitualBtn();
 }
 
 // ── MANIFESTO ─────────────────────────────────────────────────────────────────
@@ -1783,8 +1868,10 @@ function getManifesto(){return load(SK.manifesto,'');}
 function saveManifesto(){
   const ta=document.getElementById('manifesto-ta');
   if(!ta||!ta.value.trim())return;
+  const wasEmpty=!getManifesto().trim();
   save(SK.manifesto,ta.value);
-  awardXP(50);showXPToast('+50 XP','📜','Manifesto gespeichert!');
+  if(wasEmpty){awardXP(50);showXPToast('+50 XP','📜','Manifesto gespeichert!');}
+  else{showXPToast('Gespeichert','📜','Manifesto aktualisiert');}
   setTimeout(checkAutoAchievements,100);
 }
 function renderManifesto(){
@@ -1847,7 +1934,7 @@ function switchTab(tab){
   document.querySelectorAll('.nav-item').forEach(btn=>btn.classList.toggle('active',btn.dataset.tab===tab));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
-  if(tab==='review'){updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();document.getElementById('sat-banner').classList.toggle('visible',new Date().getDay()===6);}
+  if(tab==='review'){updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();renderStateAnalytics();renderKPIChart();document.getElementById('sat-banner').classList.toggle('visible',new Date().getDay()===6);}
   if(tab==='mindset'){renderMission();renderAffirmations();renderStateLog();}
   if(tab==='outreach'){renderMission();renderPipeline();renderTemplates();renderReasonCards();}
   if(tab==='start')renderStart();
@@ -1919,6 +2006,164 @@ function renderFunnel(){
       </div>
     </div>`;
   }).join('');
+}
+
+// ── STATE ANALYTICS ───────────────────────────────────────────────────────────
+function renderStateAnalytics(){
+  const el=document.getElementById('state-analytics-wrap');if(!el)return;
+  const log=getStateLog();
+  if(!log.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">Noch keine State-Daten.</div>';return;}
+  const byDay={};
+  log.forEach(e=>{const d=new Date(e.ts).toISOString().split('T')[0];if(!byDay[d])byDay[d]=[];byDay[d].push(e.rating);});
+  const days=Object.keys(byDay).sort().slice(-14);
+  const avgs=days.map(d=>{const arr=byDay[d];return arr.reduce((s,v)=>s+v,0)/arr.length;});
+  const overall=avgs.length?avgs.reduce((s,v)=>s+v,0)/avgs.length:0;
+  const last7=avgs.slice(-7);const prev7=avgs.slice(-14,-7);
+  const avgLast7=last7.length?last7.reduce((s,v)=>s+v,0)/last7.length:0;
+  const avgPrev7=prev7.length?prev7.reduce((s,v)=>s+v,0)/prev7.length:0;
+  const trend=prev7.length?avgLast7-avgPrev7:null;
+  const trendHtml=trend!==null?`<span style="font-size:12px;color:${trend>=0?'var(--green)':'var(--red)'}">${trend>=0?'↑':'↓'} ${Math.abs(trend).toFixed(1)} vs. Vorwoche</span>`:'';
+  const barW=36;const barGap=6;const chartH=70;const totalW=days.length*(barW+barGap);
+  const bars=avgs.map((avg,i)=>{
+    const col=avg>=8?'var(--green)':avg>=6?'#facc15':'var(--red)';
+    const barH=Math.round((avg/10)*chartH);
+    const x=i*(barW+barGap);
+    const y=chartH-barH;
+    const dateLbl=fmtDate(days[i]).slice(0,5);
+    return`<g>
+      <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="${col}" opacity=".85"/>
+      <text x="${x+barW/2}" y="${chartH+14}" text-anchor="middle" font-size="9" fill="var(--muted)">${dateLbl}</text>
+      <text x="${x+barW/2}" y="${y-4}" text-anchor="middle" font-size="10" fill="${col}" font-weight="600">${avg.toFixed(1)}</text>
+    </g>`;
+  }).join('');
+  el.innerHTML=`
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+      <span style="font-size:20px;font-weight:700;color:var(--amber)">${overall.toFixed(1)}</span>
+      <span style="font-size:12px;color:var(--muted)">Ø Gesamt</span>
+      ${trendHtml}
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg viewBox="0 0 ${Math.max(totalW,300)} ${chartH+24}" style="width:100%;max-width:${Math.max(totalW,300)}px;height:${chartH+24}px;display:block" xmlns="http://www.w3.org/2000/svg">
+        ${bars}
+      </svg>
+    </div>`;
+}
+
+// ── KPI CHART ─────────────────────────────────────────────────────────────────
+let _kpiMetric='dms';
+function renderKPIChart(metric){
+  if(metric)_kpiMetric=metric;
+  document.querySelectorAll('.kpi-btn').forEach(b=>b.classList.toggle('active',b.dataset.kpi===_kpiMetric));
+  const el=document.getElementById('kpi-chart-wrap');if(!el)return;
+  const days=getDays();
+  const stateLog=getStateLog();
+  const today=todayStr();
+  const dateList=[];
+  for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dateList.push(d.toISOString().split('T')[0]);}
+  let data=[];let label='';let color='var(--accent)';let maxVal=1;
+  if(_kpiMetric==='dms'){
+    label='DMs / Tag';color='var(--accent)';
+    data=dateList.map(d=>(days[d]||[]).length);
+    maxVal=Math.max(1,...data);
+  } else if(_kpiMetric==='state'){
+    label='State Ø';color='#facc15';
+    const byDay={};
+    stateLog.forEach(e=>{const d=new Date(e.ts).toISOString().split('T')[0];if(!byDay[d])byDay[d]=[];byDay[d].push(e.rating);});
+    data=dateList.map(d=>byDay[d]?byDay[d].reduce((s,v)=>s+v,0)/byDay[d].length:null);
+    maxVal=10;
+  } else if(_kpiMetric==='streak'){
+    label='Streak';color='var(--purple)';
+    const sr=computeStreak();
+    data=dateList.map((d,i)=>{
+      const inStreak=sr.dates?sr.dates.includes(d):false;
+      return inStreak?1:0;
+    });
+    maxVal=1;
+  }
+  const W=300;const H=80;const pad=4;
+  const usableW=W-pad*2;const usableH=H-pad*2;
+  const pts=data.map((v,i)=>{
+    const x=pad+i*(usableW/(dateList.length-1||1));
+    const y=v===null?null:pad+usableH-(v/maxVal)*usableH;
+    return{x,y,v,d:dateList[i]};
+  });
+  const validPts=pts.filter(p=>p.y!==null);
+  if(!validPts.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0">Keine Daten für diesen Zeitraum.</div>';return;}
+  const polyline=validPts.map(p=>`${p.x},${p.y}`).join(' ');
+  const area=validPts.map(p=>`${p.x},${p.y}`).join(' ')+` ${validPts[validPts.length-1].x},${H} ${validPts[0].x},${H}`;
+  const dots=validPts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="${color}"/>`).join('');
+  const xLabels=dateList.filter((_,i)=>i%3===0||i===dateList.length-1).map((d,_,arr)=>{
+    const idx=dateList.indexOf(d);
+    const x=pad+idx*(usableW/(dateList.length-1||1));
+    return`<text x="${x}" y="${H+13}" text-anchor="middle" font-size="9" fill="var(--muted)">${fmtDate(d).slice(0,5)}</text>`;
+  }).join('');
+  const lastVal=validPts[validPts.length-1].v;
+  const lastFormatted=_kpiMetric==='state'?lastVal.toFixed(1):Math.round(lastVal);
+  el.innerHTML=`
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+      <span style="font-size:22px;font-weight:700;color:${color}">${lastFormatted}</span>
+      <span style="font-size:12px;color:var(--muted)">${label} heute</span>
+    </div>
+    <div style="overflow-x:hidden">
+      <svg viewBox="0 0 ${W} ${H+18}" style="width:100%;display:block" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="kpig" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity=".3"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+        <polygon points="${area}" fill="url(#kpig)"/>
+        <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}
+        ${xLabels}
+      </svg>
+    </div>`;
+}
+
+// ── PUSH NOTIFICATIONS ────────────────────────────────────────────────────────
+async function requestNotificationPermission(){
+  if(!('Notification' in window)){showXPToast('Nicht unterstützt','🔔','Benachrichtigungen nicht verfügbar');return;}
+  if(Notification.permission==='granted'){showXPToast('Bereits aktiv','🔔','Benachrichtigungen schon erlaubt');scheduleStateNotification();return;}
+  const result=await Notification.requestPermission();
+  if(result==='granted'){
+    showXPToast('Benachrichtigungen aktiv','🔔','Du wirst erinnert deinen State zu loggen');
+    scheduleStateNotification();
+  }
+}
+function scheduleStateNotification(){
+  if(Notification.permission!=='granted')return;
+  const s=getSettings();
+  if(!s.stateReminderHours||s.stateReminderHours===0)return;
+  const intervalMs=s.stateReminderHours*3600*1000;
+  const lastStr=localStorage.getItem('life_lastStatePopup');
+  const lastMs=lastStr?new Date(lastStr).getTime():Date.now();
+  const nextMs=Math.max(Date.now()+60000,lastMs+intervalMs);
+  const delayMs=nextMs-Date.now();
+  setTimeout(()=>{
+    const mr=getMorningRitual();
+    if(mr.date===todayStr()&&mr.stateRating){
+      if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'State Check-In 📊',body:'Wie ist dein State gerade? Nimm dir 10 Sekunden.'});
+      } else {
+        new Notification('State Check-In 📊',{body:'Wie ist dein State gerade?',icon:'/icons/icon-192.png'});
+      }
+    }
+    scheduleStateNotification();
+  },delayMs);
+}
+
+// ── ATEMÜBUNG OHNE APP ────────────────────────────────────────────────────────
+function breathingDoneWithout(){
+  const lock=getDailyLock(),today=todayStr();
+  if(lock.date===today&&lock.breathingDone){showXPToast('Bereits gemacht','🫁','Heute schon erfasst');return;}
+  if(lock.date!==today){lock.date=today;lock.gratitudeDone=false;lock.contractsDone=false;lock.breathingDone=false;}
+  lock.breathingDone=true;
+  save(SK.dailyLock,lock);
+  awardXP(15);
+  showXPToast('+15 XP','🫁','Atemübung — gut gemacht!');
+  const btn=document.getElementById('btn-breathing-without');
+  if(btn){btn.disabled=true;btn.style.opacity='.5';}
+  setTimeout(checkAutoAchievements,100);
+}
+function restoreBreathingButton(){
+  const lock=getDailyLock();
+  const btn=document.getElementById('btn-breathing-without');
+  if(btn&&lock.date===todayStr()&&lock.breathingDone){btn.disabled=true;btn.style.opacity='.5';}
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
@@ -1998,7 +2243,7 @@ function toggleTagesplan(){
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 function getSettings(){
-  return load(SK.settings,{dailyTarget:20,stateReminderHours:4,xpPenalty:10});
+  return load(SK.settings,{dailyTarget:20,stateReminderHours:4,xpPenalty:10,defaultFollowUp:3});
 }
 function openSettings(){
   const s=getSettings();
@@ -2006,9 +2251,11 @@ function openSettings(){
   const tEl=document.getElementById('st-daily');
   const iEl=document.getElementById('st-state-int');
   const pEl=document.getElementById('st-penalty');
+  const fuEl=document.getElementById('st-followup');
   if(tEl)tEl.value=s.dailyTarget;
   if(iEl)iEl.value=s.stateReminderHours;
   if(pEl)pEl.value=s.xpPenalty;
+  if(fuEl)fuEl.value=s.defaultFollowUp||3;
   el.classList.add('active');
 }
 function closeSettings(){
@@ -2019,7 +2266,8 @@ function saveSettings(){
   const s={
     dailyTarget,
     stateReminderHours:parseInt(document.getElementById('st-state-int')?.value)||4,
-    xpPenalty:parseInt(document.getElementById('st-penalty')?.value)||10
+    xpPenalty:parseInt(document.getElementById('st-penalty')?.value)||10,
+    defaultFollowUp:parseInt(document.getElementById('st-followup')?.value)||3
   };
   save(SK.settings,s);
   // also persist dailyTarget into mission so renderStart picks it up
@@ -2061,7 +2309,10 @@ function skipStatePopup(){
   renderXPBar();
 }
 function checkStatePopup(){
+  const mr=getMorningRitual();
+  if(mr.date!==todayStr()||!mr.stateRating)return;
   const s=getSettings();
+  if(s.stateReminderHours===0)return;
   const lastStr=localStorage.getItem('life_lastStatePopup');
   if(lastStr){
     const diffHours=(Date.now()-new Date(lastStr).getTime())/3600000;
