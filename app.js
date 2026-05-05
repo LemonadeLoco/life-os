@@ -9,10 +9,11 @@ const SK={
   stateLog:'phq_stateLog',morningRitual:'phq_morningRitual',manifesto:'phq_manifesto',affirmations:'phq_affirmations',
   paperRitual:'phq_paperRitual',morningStreak:'phq_morningStreak',perfectDays:'phq_perfectDays',
   settings:'life_settings',dailyLock:'life_dailyLock',penaltyApplied:'life_penaltyApplied',
-  idbBackup:'life_idb_ts'
+  idbBackup:'life_idb_ts',
+  deviceId:'lo_device_id',supabaseSettings:'lo_supabase'
 };
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch(e){return d;}};
-const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}  _scheduleSyncToSupabase();};
 const todayStr=()=>new Date().toISOString().split('T')[0];
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function yesterdayStr(){const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().split('T')[0];}
@@ -2256,6 +2257,14 @@ function openSettings(){
   if(iEl)iEl.value=s.stateReminderHours;
   if(pEl)pEl.value=s.xpPenalty;
   if(fuEl)fuEl.value=s.defaultFollowUp||3;
+  const sb=getSupabaseSettings();
+  const sbUrl=document.getElementById('st-sb-url');
+  const sbKey=document.getElementById('st-sb-key');
+  const sbOn=document.getElementById('st-sb-enabled');
+  if(sbUrl)sbUrl.value=sb.url||'';
+  if(sbKey)sbKey.value=sb.key||'';
+  if(sbOn)sbOn.checked=!!sb.enabled;
+  _updateSyncStatus();
   el.classList.add('active');
 }
 function closeSettings(){
@@ -2270,10 +2279,15 @@ function saveSettings(){
     defaultFollowUp:parseInt(document.getElementById('st-followup')?.value)||3
   };
   save(SK.settings,s);
+  const sbUrl=(document.getElementById('st-sb-url')?.value||'').trim();
+  const sbKey=(document.getElementById('st-sb-key')?.value||'').trim();
+  const sbEnabled=!!(document.getElementById('st-sb-enabled')?.checked);
+  localStorage.setItem(SK.supabaseSettings,JSON.stringify({url:sbUrl,key:sbKey,enabled:sbEnabled}));
   // also persist dailyTarget into mission so renderStart picks it up
   const m=getMission();m.dailyTarget=dailyTarget;save(SK.mission,m);
   closeSettings();
   showXPToast('Gespeichert','⚙️','Einstellungen übernommen');
+  if(sbEnabled&&sbUrl&&sbKey)syncToSupabase();
   renderStart();
 }
 
@@ -2433,4 +2447,73 @@ document.addEventListener('DOMContentLoaded',()=>{
   idbInit();
   startStatePopupTimer();
   updateNavDots();
+  syncFromSupabase().catch(()=>{});
+  _updateSyncStatus();
 });
+
+// ── SUPABASE CLOUD SYNC ───────────────────────────────────────────────────────
+function getDeviceId(){
+  let id=localStorage.getItem(SK.deviceId);
+  if(!id){id=crypto.randomUUID();localStorage.setItem(SK.deviceId,id);}
+  return id;
+}
+function getSupabaseSettings(){
+  return load(SK.supabaseSettings,{url:'',key:'',enabled:false});
+}
+function exportAllData(){
+  const out={_exportedAt:new Date().toISOString()};
+  Object.values(SK).forEach(k=>{
+    try{const v=localStorage.getItem(k);if(v!==null)out[k]=JSON.parse(v);}catch(e){}
+  });
+  return out;
+}
+function importAllData(blob){
+  const skip=new Set([SK.deviceId,SK.supabaseSettings,'_exportedAt']);
+  Object.entries(blob).forEach(([k,v])=>{
+    if(!skip.has(k)&&v!==undefined)localStorage.setItem(k,JSON.stringify(v));
+  });
+}
+async function syncToSupabase(){
+  const s=getSupabaseSettings();
+  if(!s.enabled||!s.url||!s.key)return;
+  try{
+    await fetch(`${s.url}/rest/v1/life_os_sync`,{
+      method:'POST',
+      headers:{apikey:s.key,Authorization:`Bearer ${s.key}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+      body:JSON.stringify({id:getDeviceId(),data:exportAllData(),updated_at:new Date().toISOString()})
+    });
+    localStorage.setItem('lo_last_synced',new Date().toISOString());
+    _updateSyncStatus();
+  }catch(e){}
+}
+async function syncFromSupabase(){
+  const s=getSupabaseSettings();
+  if(!s.enabled||!s.url||!s.key)return;
+  try{
+    const res=await fetch(`${s.url}/rest/v1/life_os_sync?id=eq.${getDeviceId()}&select=data,updated_at`,{
+      headers:{apikey:s.key,Authorization:`Bearer ${s.key}`}
+    });
+    const rows=await res.json();
+    if(!Array.isArray(rows)||!rows.length){await syncToSupabase();return;}
+    const remote=rows[0];
+    const remoteTs=new Date(remote.updated_at).getTime();
+    const localTs=new Date(localStorage.getItem('lo_last_synced')||0).getTime();
+    if(remoteTs>localTs){
+      importAllData(remote.data);
+      localStorage.setItem('lo_last_synced',remote.updated_at);
+      location.reload();
+    }
+  }catch(e){}
+}
+function _updateSyncStatus(){
+  const el=document.getElementById('sync-status');if(!el)return;
+  const ts=localStorage.getItem('lo_last_synced');
+  el.textContent=ts?`Zuletzt synchronisiert: ${new Date(ts).toLocaleTimeString('de-DE')}`:'Noch nicht synchronisiert';
+}
+let _syncTimer=null;
+function _scheduleSyncToSupabase(){
+  const s=getSupabaseSettings();
+  if(!s.enabled||!s.url||!s.key)return;
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(syncToSupabase,5000);
+}
