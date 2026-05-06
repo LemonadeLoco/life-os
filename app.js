@@ -10,7 +10,8 @@ const SK={
   paperRitual:'phq_paperRitual',morningStreak:'phq_morningStreak',perfectDays:'phq_perfectDays',
   settings:'life_settings',dailyLock:'life_dailyLock',penaltyApplied:'life_penaltyApplied',
   idbBackup:'life_idb_ts',
-  deviceId:'lo_device_id',supabaseSettings:'lo_supabase'
+  deviceId:'lo_device_id',supabaseSettings:'lo_supabase',
+  nnLabels:'lo_nn_labels'
 };
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch(e){return d;}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}  _scheduleSyncToSupabase();};
@@ -994,6 +995,32 @@ function saveNonNeg(key,val){
   renderStart();
 }
 
+function getNNLabels(){
+  return load(SK.nnLabels,{workout:'Workout (kein Handy)',meditation:'Meditation'});
+}
+
+function editNNLabel(key){
+  const span=document.getElementById('nn-label-'+key);
+  if(!span||span.tagName==='INPUT')return;
+  const labels=getNNLabels();
+  const current=labels[key]||(key==='workout'?'Workout (kein Handy)':'Meditation');
+  const inp=document.createElement('input');
+  inp.type='text';
+  inp.value=current;
+  inp.style.cssText='background:var(--surface2);border:1px solid var(--accent);border-radius:6px;color:var(--text);font-family:inherit;font-size:14px;padding:3px 8px;outline:none;width:180px;max-width:100%';
+  span.replaceWith(inp);
+  inp.focus();inp.select();
+  const commit=()=>{
+    const val=inp.value.trim()||current;
+    const l=getNNLabels();l[key]=val;save(SK.nnLabels,l);
+    const newSpan=document.createElement('span');
+    newSpan.className='nn-label-text';newSpan.id='nn-label-'+key;newSpan.textContent=val;
+    inp.replaceWith(newSpan);
+  };
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=current;inp.blur();}});
+}
+
 function renderStart(){
   const m=getMission();
   const days=getDays();
@@ -1003,6 +1030,12 @@ function renderStart(){
   const isSunday=new Date().getDay()===0;
   const outreachDone=isSunday||sent>=target;
   const nn=getNonNeg();
+
+  const labels=getNNLabels();
+  const wLbl=document.getElementById('nn-label-workout');
+  if(wLbl&&wLbl.tagName==='SPAN')wLbl.textContent=labels.workout||'Workout (kein Handy)';
+  const mLbl=document.getElementById('nn-label-meditation');
+  if(mLbl&&mLbl.tagName==='SPAN')mLbl.textContent=labels.meditation||'Meditation';
 
   const wEl=document.getElementById('nn-workout');
   if(wEl){wEl.checked=!!nn.workout;document.getElementById('nn-item-workout').classList.toggle('done',!!nn.workout);}
@@ -1055,37 +1088,6 @@ function renderStart(){
     else{cuBtn.className='btn btn-ghost btn-full locked';}
   }
 
-  const fpEl=document.getElementById('fu-panel');
-  const flEl=document.getElementById('fu-list');
-  if(fpEl&&flEl){
-    const prospects=getProspects();
-    const fuP=prospects.filter(p=>
-      (p.stage==='dm_sent'&&p.followUpAt&&today>=p.followUpAt)||
-      p.stage==='followup'||p.stage==='loom'||
-      (p.stage==='loom_sent'&&p.followUpAt&&today>=p.followUpAt)
-    );
-    if(fuP.length){
-      fpEl.style.display='block';
-      flEl.innerHTML='';
-      fuP.forEach((p,i)=>{
-        const div=document.createElement('div');
-        div.style.cssText='padding:12px 0'+(i<fuP.length-1?';border-bottom:1px solid var(--border)':'');
-        div.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:14px">${esc(p.name)}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">${STAGE_LABELS[p.stage]||p.stage}${p.followUpAt&&p.stage==='dm_sent'?' · fällig '+fmtDate(p.followUpAt):''}</div>
-          </div>
-          <select onchange="quickMove('${p.id}',this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;padding:5px 8px;cursor:pointer;outline:none">
-            <option value="">Nächster Schritt…</option>
-            ${STAGE_ORDER.filter(s=>s!==p.stage).map(s=>`<option value="${s}">${STAGE_LABELS[s]}</option>`).join('')}
-          </select>
-        </div>`;
-        flEl.appendChild(div);
-      });
-    } else {
-      fpEl.style.display='none';
-    }
-  }
 }
 
 function openClickUp(){
@@ -1573,11 +1575,15 @@ function addMilestone(){
 function renderXPBar(){
   const xpData=getXP();
   const lvl=computeLevel(xpData.total);
-  const el=document.getElementById('zl-xp-bar');if(!el)return;
-  const nextLabel=lvl.nextXP?' / '+lvl.nextXP+' XP':' XP (MAX)';
-  el.innerHTML=`<div class="xp-bar-top"><span class="xp-bar-lvl">⚡ Level ${lvl.level} — ${lvl.name}</span><span class="xp-bar-num">${xpData.total}${nextLabel}</span></div><div class="xp-bar"><div class="xp-bar-fill" style="width:${lvl.pct}%"></div></div>`;
+  const el=document.getElementById('zl-xp-bar');
+  if(el){
+    const nextLabel=lvl.nextXP?' / '+lvl.nextXP+' XP':' XP (MAX)';
+    el.innerHTML=`<div class="xp-bar-top"><span class="xp-bar-lvl">⚡ Level ${lvl.level} — ${lvl.name}</span><span class="xp-bar-num">${xpData.total}${nextLabel}</span></div><div class="xp-bar"><div class="xp-bar-fill" style="width:${lvl.pct}%"></div></div>`;
+  }
   const lvlEl=document.getElementById('mc-level');
   if(lvlEl){lvlEl.textContent='⚡ '+lvl.name+' · '+xpData.total+' XP';lvlEl.style.display='inline-flex';}
+  const nnXp=document.getElementById('nn-xp-display');
+  if(nnXp)nnXp.textContent='⚡ Level '+lvl.level+' · '+xpData.total+' XP';
 }
 
 // ── TAGESPLAN TAB ─────────────────────────────────────────────────────────────
@@ -2204,27 +2210,45 @@ function closeAchievementOverlay(){
 // ── DONE ON PAPER ─────────────────────────────────────────────────────────────
 function doneOnPaper(type){
   const btnId=type==='contracts'?'paper-done-contracts':'paper-done-gratitude';
+  const inputsId=type==='contracts'?'contracts-inputs':'gratitude-inputs';
   const btn=document.getElementById(btnId);
-  if(!btn||btn.classList.contains('done'))return;
+  const inputsEl=document.getElementById(inputsId);
+  if(!btn)return;
+  const isCollapsed=inputsEl?.classList.contains('collapsed');
+  if(isCollapsed){
+    inputsEl.classList.remove('collapsed');
+    btn.textContent=type==='contracts'?'✍️ Auf Papier +15 XP':'✍️ Auf Papier gemacht +10 XP';
+    return;
+  }
+  if(inputsEl)inputsEl.classList.add('collapsed');
+  const wasAlreadyDone=btn.classList.contains('done');
   btn.classList.add('done');
-  btn.textContent='✍️ Papier ✓';
-  const xp=type==='contracts'?15:10;
-  awardXP(xp);
-  showXPToast('+'+xp+' XP','✍️',type==='contracts'?'Tagesverträge auf Papier!':'Dankbarkeit auf Papier!');
-  const pr=load(SK.paperRitual,{count:0,lastDate:null,todayTypes:[]});
-  const today=todayStr();
-  if(pr.lastDate!==today){pr.count=(pr.count||0)+1;pr.lastDate=today;pr.todayTypes=[type];}
-  else if(!pr.todayTypes.includes(type)){pr.todayTypes.push(type);}
-  save(SK.paperRitual,pr);
-  setTimeout(checkAutoAchievements,100);
+  btn.textContent='✍️ Papier ✓ — aufklappen';
+  if(!wasAlreadyDone){
+    const xp=type==='contracts'?15:10;
+    awardXP(xp);
+    showXPToast('+'+xp+' XP','✍️',type==='contracts'?'Tagesverträge auf Papier!':'Dankbarkeit auf Papier!');
+    const pr=load(SK.paperRitual,{count:0,lastDate:null,todayTypes:[]});
+    const today=todayStr();
+    if(pr.lastDate!==today){pr.count=(pr.count||0)+1;pr.lastDate=today;pr.todayTypes=[type];}
+    else if(!pr.todayTypes.includes(type)){pr.todayTypes.push(type);}
+    save(SK.paperRitual,pr);
+    setTimeout(checkAutoAchievements,100);
+  }
 }
 function restorePaperButtons(){
   const pr=load(SK.paperRitual,{count:0,lastDate:null,todayTypes:[]});
   if(pr.lastDate===todayStr()&&pr.todayTypes){
     pr.todayTypes.forEach(type=>{
       const btnId=type==='contracts'?'paper-done-contracts':'paper-done-gratitude';
+      const inputsId=type==='contracts'?'contracts-inputs':'gratitude-inputs';
       const btn=document.getElementById(btnId);
-      if(btn){btn.classList.add('done');btn.textContent='✍️ Papier ✓';}
+      const inputsEl=document.getElementById(inputsId);
+      if(btn){
+        btn.classList.add('done');
+        btn.textContent='✍️ Papier ✓ — aufklappen';
+        if(inputsEl)inputsEl.classList.add('collapsed');
+      }
     });
   }
 }

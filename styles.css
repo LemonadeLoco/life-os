@@ -220,6 +220,10 @@ textarea{resize:vertical;min-height:70px}
 .empty-state{text-align:center;padding:28px 20px;color:var(--muted);font-size:14px}
 
 /* ── START TAB ───────────────────────────────────────────────────────────────── */
+.morning-inputs{overflow:hidden;max-height:400px;transition:max-height .35s ease}
+.morning-inputs.collapsed{max-height:0}
+.nn-edit-btn{opacity:.3;transition:opacity .15s;flex-shrink:0}
+.nn-item:hover .nn-edit-btn,.nn-edit-btn:focus{opacity:1}
 .nn-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
 .nn-item:last-child{border-bottom:none}
 .nn-check-row{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer}
@@ -505,13 +509,13 @@ textarea{resize:vertical;min-height:70px}
 .word-arrow{font-size:14px;color:var(--muted);margin:0 4px}
 
 /* ── SETTINGS OVERLAY ────────────────────────────────────────────────────────── */
-.settings-overlay{position:fixed;inset:0;background:rgba(8,8,16,.98);z-index:9700;display:none;flex-direction:column;overflow-y:auto}
+.settings-overlay{position:fixed;inset:0;background:rgba(8,8,16,.98);z-index:9700;display:none;flex-direction:column;align-items:center;overflow-y:auto}
 .settings-overlay.active{display:flex}
-.settings-hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:1}
+.settings-hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:1;width:100%;max-width:800px}
 .settings-hdr-title{font-size:16px;font-weight:700}
 .settings-close{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:inherit;font-size:14px;font-weight:600;padding:6px 12px;cursor:pointer;transition:all .15s}
 .settings-close:hover{color:var(--text);border-color:var(--muted)}
-.settings-body{padding:16px 20px 120px;max-width:800px;width:100%}
+.settings-body{padding:16px 20px 120px;max-width:800px;width:100%;margin:0 auto}
 .settings-section-hdr{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:20px 0 10px;display:flex;align-items:center;gap:8px}
 .settings-section-hdr::after{content:'';flex:1;height:1px;background:var(--border)}
 .settings-note{font-size:11px;color:var(--muted);text-align:center;margin-top:16px;padding:12px;background:var(--surface);border-radius:8px;border:1px solid var(--border)}

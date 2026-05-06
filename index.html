@@ -64,6 +64,41 @@
   <div id="tab-start" class="tab-panel active">
 
     <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-label" style="margin-bottom:0">Non-Negotiables — heute</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="nn-xp-display" style="font-size:11px;font-weight:600;color:var(--amber)"></span>
+          <span id="nn-streak-badge" style="font-size:12px;font-weight:600;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <div class="nn-item" id="nn-item-workout">
+        <label class="nn-check-row" for="nn-workout">
+          <input type="checkbox" id="nn-workout" onchange="saveNonNeg('workout',this.checked)">
+          <span class="nn-label-text" id="nn-label-workout">Workout (kein Handy)</span>
+        </label>
+        <button class="btn btn-ghost btn-xs nn-edit-btn" onclick="editNNLabel('workout')" title="Label bearbeiten">✎</button>
+      </div>
+
+      <div class="nn-item" id="nn-item-meditation">
+        <label class="nn-check-row" for="nn-meditation">
+          <input type="checkbox" id="nn-meditation" onchange="saveNonNeg('meditation',this.checked)">
+          <span class="nn-label-text" id="nn-label-meditation">Meditation</span>
+        </label>
+        <button class="btn btn-ghost btn-xs nn-edit-btn" onclick="editNNLabel('meditation')" title="Label bearbeiten">✎</button>
+        <button class="btn btn-ghost btn-xs" style="flex-shrink:0" onclick="startMeditationTimer(10)">Timer</button>
+      </div>
+
+      <div class="nn-item" id="nn-item-outreach">
+        <span class="nn-label-text">Outreach</span>
+        <div class="nn-prog-wrap">
+          <div class="nn-prog-bar"><div id="nn-prog-fill" class="nn-prog-fill" style="width:0%"></div></div>
+          <span id="nn-prog-text" class="nn-prog-text">0 / 20</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
       <div class="card-label">Schritt 1 — Entspannungsatmung</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">5 Atemzüge: Max. einatmen → Max. ausatmen, so langsam wie möglich.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -75,21 +110,24 @@
     <div class="card" style="margin-bottom:14px">
       <div class="card-label">Schritt 2 — Dankbarkeit</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">3 Dinge für die du dankbar bist. Fühl sie — schreib sie nicht nur.</div>
-      <div class="gratitude-item"><span class="gratitude-num">1.</span><input type="text" id="grat-1" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
-      <div class="gratitude-item"><span class="gratitude-num">2.</span><input type="text" id="grat-2" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
-      <div class="gratitude-item"><span class="gratitude-num">3.</span><input type="text" id="grat-3" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
-      <div class="paper-done-row">
+      <div id="gratitude-inputs" class="morning-inputs">
+        <div class="gratitude-item"><span class="gratitude-num">1.</span><input type="text" id="grat-1" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
+        <div class="gratitude-item"><span class="gratitude-num">2.</span><input type="text" id="grat-2" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
+        <div class="gratitude-item"><span class="gratitude-num">3.</span><input type="text" id="grat-3" placeholder="Ich bin dankbar für…" oninput="saveMorningGratitudes()"></div>
+      </div>
+      <div class="paper-done-row" style="margin-top:10px">
         <button class="btn btn-paper btn-sm" id="paper-done-gratitude" onclick="doneOnPaper('gratitude')">✍️ Auf Papier gemacht +10 XP</button>
-        <span style="font-size:11px;color:var(--muted)">Dankbarkeit auf Papier geschrieben</span>
       </div>
     </div>
 
     <div class="card" style="margin-bottom:14px">
       <div class="card-label">Schritt 3 — Tagesverträge</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">3 spezifische Commitments. Verträge — kein Verhandeln.</div>
-      <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-0" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-0" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
-      <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-1" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-1" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
-      <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-2" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-2" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
+      <div id="contracts-inputs" class="morning-inputs">
+        <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-0" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-0" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
+        <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-1" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-1" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
+        <div class="contract-item"><input type="checkbox" class="contract-cb" id="contract-cb-2" onchange="saveMorningContracts()"><input type="text" class="contract-text-input" id="contract-2" placeholder="Heute werde ich…" oninput="saveMorningContracts()"></div>
+      </div>
       <div style="margin-top:14px">
         <button class="btn btn-paper btn-sm" id="paper-done-contracts" onclick="doneOnPaper('contracts')">✍️ Auf Papier +15 XP</button>
       </div>
@@ -105,42 +143,7 @@
       <button class="btn btn-amber btn-sm" style="margin-top:14px" onclick="completeMorningRitual()">Morgenritual abschließen +20 XP</button>
     </div>
 
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="card-label" style="margin-bottom:0">Non-Negotiables — heute</div>
-        <span id="nn-streak-badge" style="font-size:12px;font-weight:600;color:var(--muted)"></span>
-      </div>
-
-      <div class="nn-item" id="nn-item-workout">
-        <label class="nn-check-row" for="nn-workout">
-          <input type="checkbox" id="nn-workout" onchange="saveNonNeg('workout',this.checked)">
-          <span class="nn-label-text">Workout (kein Handy)</span>
-        </label>
-      </div>
-
-      <div class="nn-item" id="nn-item-meditation">
-        <label class="nn-check-row" for="nn-meditation">
-          <input type="checkbox" id="nn-meditation" onchange="saveNonNeg('meditation',this.checked)">
-          <span class="nn-label-text">Meditation</span>
-        </label>
-        <button class="btn btn-ghost btn-xs" style="flex-shrink:0" onclick="startMeditationTimer(10)">Timer</button>
-      </div>
-
-      <div class="nn-item" id="nn-item-outreach">
-        <span class="nn-label-text">Outreach</span>
-        <div class="nn-prog-wrap">
-          <div class="nn-prog-bar"><div id="nn-prog-fill" class="nn-prog-fill" style="width:0%"></div></div>
-          <span id="nn-prog-text" class="nn-prog-text">0 / 20</span>
-        </div>
-      </div>
-    </div>
-
     <div id="start-banner" class="start-banner start-banner-notdone">0/20 DMs — Kein ClickUp. Kein Content. Outreach zuerst.</div>
-
-    <div id="fu-panel" class="card" style="display:none;border-color:rgba(245,158,11,.4);margin-bottom:14px">
-      <div class="card-label" style="color:var(--amber);margin-bottom:10px">Follow-ups — jetzt erledigen</div>
-      <div id="fu-list"></div>
-    </div>
 
     <button id="outreach-btn" class="btn btn-amber btn-full" style="margin-bottom:10px" onclick="switchTab('outreach')">Jetzt Outreach starten →</button>
     <button id="clickup-btn" class="btn btn-ghost btn-full locked" onclick="openClickUp()">ClickUp öffnen</button>
