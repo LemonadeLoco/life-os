@@ -1051,6 +1051,11 @@ function renderStart(){
     if(s.best>s.current&&s.best>0)nnSEl.title='Bester: '+s.best+' Tage';
   }
 
+  if(!!nn.meditation){
+    const sb=document.getElementById('btn-breathing-start');
+    if(sb&&!sb.classList.contains('btn-done')){sb.disabled=true;sb.classList.add('btn-done');sb.textContent='✓ Erledigt';}
+  }
+
   const fillEl=document.getElementById('nn-prog-fill');
   const progText=document.getElementById('nn-prog-text');
   const outreachItem=document.getElementById('nn-item-outreach');
@@ -1190,6 +1195,22 @@ function getMilestones(){
     {id:'ms_dm30day',text:'Volume Monster',      xp:100, icon:'🌪️',autoKey:'dm30day',  rarity:'epic',     flavor:'30 DMs an einem Tag',                    system:true,done:false,doneDate:null},
     // ── CLIENTS ────────────────────────────────────────────────────────────────
     {id:'ms_won3',   text:'Agency Mode',         xp:1000,icon:'🏰',autoKey:'won3',     rarity:'legendary',flavor:'3 Kunden gewonnen — Agency läuft',        system:true,done:false,doneDate:null},
+    // ── CALLS BOOKED ────────────────────────────────────────────────────────────
+    {id:'ms_cb1',    text:'First Call',          xp:150, icon:'📞',autoKey:'cb1',      rarity:'epic',     flavor:'Erster Call gebucht — der Wendepunkt',      system:true,done:false,doneDate:null},
+    {id:'ms_cb3',    text:'Deal Flow',           xp:250, icon:'📅',autoKey:'cb3',      rarity:'epic',     flavor:'3 Calls gebucht — das System funktioniert', system:true,done:false,doneDate:null},
+    {id:'ms_cb5',    text:'Sales Machine',       xp:400, icon:'⚡',autoKey:'cb5',      rarity:'legendary',flavor:'5 Calls gebucht — du bist im Flow',          system:true,done:false,doneDate:null},
+    // ── LOOM ────────────────────────────────────────────────────────────────────
+    {id:'ms_loom3',  text:'Video Selling',       xp:100, icon:'📹',autoKey:'loom3',    rarity:'rare',     flavor:'3 Looms versendet',                         system:true,done:false,doneDate:null},
+    {id:'ms_loom5',  text:'Loom Machine',        xp:200, icon:'🎬',autoKey:'loom5',    rarity:'epic',     flavor:'5 Looms versendet — du machst es anders',   system:true,done:false,doneDate:null},
+    // ── MORNING STREAK ──────────────────────────────────────────────────────────
+    {id:'ms_morn7',  text:'Week Protocol',       xp:80,  icon:'☀️',autoKey:'morning7', rarity:'rare',     flavor:'7 Tage Morgenritual in Folge',              system:true,done:false,doneDate:null},
+    {id:'ms_morn30', text:'30 Day Protocol',     xp:500, icon:'🌟',autoKey:'morning30',rarity:'legendary',flavor:'30 Tage Morgenritual — du bist anders als die Masse',system:true,done:false,doneDate:null},
+    // ── STATE QUALITY ──────────────────────────────────────────────────────────
+    {id:'ms_state9', text:'God Mode',            xp:100, icon:'🔥',autoKey:'stateHigh',rarity:'rare',     flavor:'State ≥ 9 zum ersten Mal geloggt',          system:true,done:false,doneDate:null},
+    // ── WEEKLY VOLUME ──────────────────────────────────────────────────────────
+    {id:'ms_dm100w', text:'Volume Week',         xp:200, icon:'📊',autoKey:'dm100w',   rarity:'epic',     flavor:'100 DMs in einer Woche',                    system:true,done:false,doneDate:null},
+    // ── REVIEW HABIT ───────────────────────────────────────────────────────────
+    {id:'ms_rev10',  text:'Pattern Recognition', xp:150, icon:'🔍',autoKey:'review10', rarity:'rare',     flavor:'10 Weekly Reviews — du erkennst Muster',    system:true,done:false,doneDate:null},
   ];
   const saved=load(SK.milestones,null);
   if(!saved)return defaults;
@@ -1335,6 +1356,16 @@ function renderMilestones(targetId){
     lv3:{val:currentLevel,max:3},
     lv5:{val:currentLevel,max:5},
     lv8:{val:currentLevel,max:8},
+    cb1:{val:prospects.filter(p=>p.history&&p.history.some(h=>h.action==='Call Gebucht')).length,max:1},
+    cb3:{val:prospects.filter(p=>p.history&&p.history.some(h=>h.action==='Call Gebucht')).length,max:3},
+    cb5:{val:prospects.filter(p=>p.history&&p.history.some(h=>h.action==='Call Gebucht')).length,max:5},
+    loom3:{val:loomSentTotal,max:3},
+    loom5:{val:loomSentTotal,max:5},
+    morning7:{val:morningStreakCurrent,max:7},
+    morning30:{val:morningStreakCurrent,max:30},
+    stateHigh:{val:getStateLog().filter(e=>e.value>=9).length,max:1},
+    dm100w:{val:(()=>{const wkStart=new Date(getWeekKey()+'T00:00:00');return Object.entries(days).filter(([d])=>new Date(d+'T00:00:00')>=wkStart).reduce((s,[,a])=>s+(a||[]).length,0);})(),max:100},
+    review10:{val:reviewTotal,max:10},
   };
 
   const sysAchs=milestones.filter(ms=>ms.system);
@@ -1481,6 +1512,11 @@ function checkAutoAchievements(){
   const affCount=getAffirmations().length;
   const currentLevel=computeLevel(getXP().total).level;
 
+  const callBookedTotal=prospects.filter(p=>p.history&&p.history.some(h=>h.action==='Call Gebucht')).length;
+  const weekDMs=(()=>{const wkStart=new Date(getWeekKey()+'T00:00:00');return Object.entries(days).filter(([d])=>new Date(d+'T00:00:00')>=wkStart).reduce((s,[,a])=>s+(a||[]).length,0);})();
+  const stateLog=getStateLog();
+  const highStateCount=stateLog.filter(e=>e.value>=9).length;
+
   const conditions={
     dm1:totalDMs>=1,
     dm5:totalDMs>=5,
@@ -1513,8 +1549,8 @@ function checkAutoAchievements(){
     nn30:nnCurStreak>=30,
     lost5:lostTotal>=5,
     review5:reviewTotal>=5,
-    state1:getStateLog().length>=1,
-    state10:getStateLog().length>=10,
+    state1:stateLog.length>=1,
+    state10:stateLog.length>=10,
     ritual1:getMorningRitual().date===todayStr()&&!!getMorningRitual().stateRating,
     manif1:getManifesto().trim().length>20,
     paper1:paperCount>=1,
@@ -1530,12 +1566,22 @@ function checkAutoAchievements(){
     lv7:currentLevel>=7,
     lv8:currentLevel>=8,
     lv10:currentLevel>=10,
-    state25:getStateLog().length>=25,
-    state50:getStateLog().length>=50,
+    state25:stateLog.length>=25,
+    state50:stateLog.length>=50,
     streak30:streak.count>=30,
     dm750:totalDMs>=750,
     dm30day:todayDMs>=30,
     won3:wonTotal>=3,
+    cb1:callBookedTotal>=1,
+    cb3:callBookedTotal>=3,
+    cb5:callBookedTotal>=5,
+    loom3:loomSentTotal>=3,
+    loom5:loomSentTotal>=5,
+    morning7:morningStreakCurrent>=7,
+    morning30:morningStreakCurrent>=30,
+    stateHigh:highStateCount>=1,
+    dm100w:weekDMs>=100,
+    review10:reviewTotal>=10,
   };
 
   const newlyUnlocked=[];
@@ -1845,7 +1891,8 @@ function completeMorningRitual(){
 function _markMorningRitualBtn(){
   const btn=document.querySelector('[onclick="completeMorningRitual()"]');
   if(!btn)return;
-  btn.disabled=true;btn.style.opacity='.55';
+  btn.disabled=true;
+  btn.classList.add('btn-done');
   btn.textContent='✓ Morgenritual abgeschlossen';
 }
 function _restoreMorningRitualBtn(){
@@ -2163,14 +2210,18 @@ function breathingDoneWithout(){
   save(SK.dailyLock,lock);
   awardXP(15);
   showXPToast('+15 XP','🫁','Atemübung — gut gemacht!');
-  const btn=document.getElementById('btn-breathing-without');
-  if(btn){btn.disabled=true;btn.style.opacity='.5';}
+  _markBreathingDone();
   setTimeout(checkAutoAchievements,100);
 }
+function _markBreathingDone(){
+  const withoutBtn=document.getElementById('btn-breathing-without');
+  if(withoutBtn){withoutBtn.disabled=true;withoutBtn.classList.add('btn-done');withoutBtn.textContent='✓ Atemübung erledigt';}
+  const startBtn=document.getElementById('btn-breathing-start');
+  if(startBtn){startBtn.disabled=true;startBtn.classList.add('btn-done');startBtn.textContent='✓ Erledigt';}
+}
 function restoreBreathingButton(){
-  const lock=getDailyLock();
-  const btn=document.getElementById('btn-breathing-without');
-  if(btn&&lock.date===todayStr()&&lock.breathingDone){btn.disabled=true;btn.style.opacity='.5';}
+  const lock=getDailyLock(),nn=getNonNeg();
+  if((lock.date===todayStr()&&lock.breathingDone)||!!nn.meditation)_markBreathingDone();
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────

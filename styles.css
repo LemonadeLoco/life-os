@@ -451,6 +451,7 @@ textarea{resize:vertical;min-height:70px}
 .btn-paper{background:rgba(245,158,11,.08);color:var(--amber);border:1px solid rgba(245,158,11,.3)}
 .btn-paper:hover{background:rgba(245,158,11,.15)}
 .btn-paper.done{background:var(--green-dim);color:var(--green);border-color:rgba(16,185,129,.3);opacity:.75;pointer-events:none}
+.btn-done,.btn-done:disabled{background:var(--green-dim)!important;color:var(--green)!important;border:1px solid rgba(16,185,129,.3)!important;opacity:1!important;cursor:default;pointer-events:none}
 
 /* ── TAGESPLAN COLLAPSIBLE ───────────────────────────────────────────────────── */
 .tagesplan-toggle{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;padding:14px 18px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:var(--text);margin-top:12px;transition:background .15s}
