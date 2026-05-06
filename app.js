@@ -2338,6 +2338,8 @@ function openSettings(){
   const sbOn=document.getElementById('st-sb-enabled');
   if(sbUrl)sbUrl.value=sb.url||'';
   if(sbKey)sbKey.value=sb.key||'';
+  const sbId=document.getElementById('st-sb-id');
+  if(sbId)sbId.value=sb.id||'main';
   if(sbOn)sbOn.checked=!!sb.enabled;
   _updateSyncStatus();
   el.classList.add('active');
@@ -2356,8 +2358,9 @@ function saveSettings(){
   save(SK.settings,s);
   const sbUrl=(document.getElementById('st-sb-url')?.value||'').trim();
   const sbKey=(document.getElementById('st-sb-key')?.value||'').trim();
+  const sbId=(document.getElementById('st-sb-id')?.value||'main').trim()||'main';
   const sbEnabled=!!(document.getElementById('st-sb-enabled')?.checked);
-  localStorage.setItem(SK.supabaseSettings,JSON.stringify({url:sbUrl,key:sbKey,enabled:sbEnabled}));
+  localStorage.setItem(SK.supabaseSettings,JSON.stringify({url:sbUrl,key:sbKey,id:sbId,enabled:sbEnabled}));
   // also persist dailyTarget into mission so renderStart picks it up
   const m=getMission();m.dailyTarget=dailyTarget;save(SK.mission,m);
   closeSettings();
@@ -2533,7 +2536,11 @@ function getDeviceId(){
   return id;
 }
 function getSupabaseSettings(){
-  return load(SK.supabaseSettings,{url:'',key:'',enabled:false});
+  return load(SK.supabaseSettings,{url:'',key:'',id:'main',enabled:false});
+}
+function _getSyncRowId(){
+  const s=getSupabaseSettings();
+  return (s.id||'main').trim()||'main';
 }
 function exportAllData(){
   const out={_exportedAt:new Date().toISOString()};
@@ -2548,42 +2555,83 @@ function importAllData(blob){
     if(!skip.has(k)&&v!==undefined)localStorage.setItem(k,JSON.stringify(v));
   });
 }
+async function _pushToSupabase(s){
+  const rowId=_getSyncRowId();
+  const now=new Date().toISOString();
+  const res=await fetch(`${s.url}/rest/v1/life_os_sync`,{
+    method:'POST',
+    headers:{apikey:s.key,Authorization:`Bearer ${s.key}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+    body:JSON.stringify({id:rowId,data:exportAllData(),updated_at:now})
+  });
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  localStorage.setItem('lo_last_synced',now);
+  _updateSyncStatus();
+}
 async function syncToSupabase(){
   const s=getSupabaseSettings();
   if(!s.enabled||!s.url||!s.key)return;
+  try{await _pushToSupabase(s);}catch(e){}
+}
+async function forcePushToSupabase(){
+  const s=getSupabaseSettings();
+  if(!s.url||!s.key){_setSyncStatus('Bitte URL und Key eingeben.');return;}
+  _setSyncStatus('Sichert…');
   try{
-    await fetch(`${s.url}/rest/v1/life_os_sync`,{
-      method:'POST',
-      headers:{apikey:s.key,Authorization:`Bearer ${s.key}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-      body:JSON.stringify({id:getDeviceId(),data:exportAllData(),updated_at:new Date().toISOString()})
+    await _pushToSupabase(s);
+    _setSyncStatus('✓ Gesichert — '+new Date().toLocaleTimeString('de-DE'));
+  }catch(e){_setSyncStatus('Fehler: '+(e.message||'Unbekannt'));}
+}
+async function forceLoadFromSupabase(){
+  const s=getSupabaseSettings();
+  if(!s.url||!s.key){_setSyncStatus('Bitte URL und Key eingeben.');return;}
+  _setSyncStatus('Lädt…');
+  try{
+    const rowId=_getSyncRowId();
+    const res=await fetch(`${s.url}/rest/v1/life_os_sync?id=eq.${encodeURIComponent(rowId)}&select=data,updated_at`,{
+      headers:{apikey:s.key,Authorization:`Bearer ${s.key}`}
     });
-    localStorage.setItem('lo_last_synced',new Date().toISOString());
-    _updateSyncStatus();
-  }catch(e){}
+    if(!res.ok){_setSyncStatus('Fehler: HTTP '+res.status);return;}
+    const rows=await res.json();
+    if(!Array.isArray(rows)||!rows.length){
+      _setSyncStatus('Keine Daten gefunden — zuerst von einem anderen Gerät hochladen.');
+      return;
+    }
+    importAllData(rows[0].data);
+    localStorage.setItem('lo_last_synced',rows[0].updated_at);
+    _setSyncStatus('✓ Geladen — Stand: '+new Date(rows[0].updated_at).toLocaleString('de-DE'));
+    setTimeout(()=>location.reload(),900);
+  }catch(e){_setSyncStatus('Fehler: '+(e.message||'Unbekannt'));}
 }
 async function syncFromSupabase(){
   const s=getSupabaseSettings();
   if(!s.enabled||!s.url||!s.key)return;
   try{
-    const res=await fetch(`${s.url}/rest/v1/life_os_sync?id=eq.${getDeviceId()}&select=data,updated_at`,{
+    const rowId=_getSyncRowId();
+    const res=await fetch(`${s.url}/rest/v1/life_os_sync?id=eq.${encodeURIComponent(rowId)}&select=data,updated_at`,{
       headers:{apikey:s.key,Authorization:`Bearer ${s.key}`}
     });
     const rows=await res.json();
-    if(!Array.isArray(rows)||!rows.length){await syncToSupabase();return;}
-    const remote=rows[0];
-    const remoteTs=new Date(remote.updated_at).getTime();
+    if(!Array.isArray(rows)||!rows.length){
+      await _pushToSupabase(s);
+      return;
+    }
+    const remoteTs=new Date(rows[0].updated_at).getTime();
     const localTs=new Date(localStorage.getItem('lo_last_synced')||0).getTime();
     if(remoteTs>localTs){
-      importAllData(remote.data);
-      localStorage.setItem('lo_last_synced',remote.updated_at);
+      importAllData(rows[0].data);
+      localStorage.setItem('lo_last_synced',rows[0].updated_at);
       location.reload();
+    } else if(localTs>remoteTs){
+      await _pushToSupabase(s);
     }
   }catch(e){}
 }
+function _setSyncStatus(msg){
+  const el=document.getElementById('sync-status');if(el)el.textContent=msg;
+}
 function _updateSyncStatus(){
-  const el=document.getElementById('sync-status');if(!el)return;
   const ts=localStorage.getItem('lo_last_synced');
-  el.textContent=ts?`Zuletzt synchronisiert: ${new Date(ts).toLocaleTimeString('de-DE')}`:'Noch nicht synchronisiert';
+  _setSyncStatus(ts?'Zuletzt sync: '+new Date(ts).toLocaleString('de-DE'):'Noch nicht synchronisiert');
 }
 let _syncTimer=null;
 function _scheduleSyncToSupabase(){

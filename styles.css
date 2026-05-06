@@ -1,5 +1,6 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+button,a,input,select,textarea,label{touch-action:manipulation}
 :root{
   --bg:#0d0d0d;--surface:#161616;--surface2:#1f1f1f;--border:#2a2a2a;
   --text:#ffffff;--muted:#6b7280;--secondary:#9ca3af;

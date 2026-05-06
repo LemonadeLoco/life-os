@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Life OS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -926,13 +926,17 @@
         <label>Anon Key</label>
         <input id="st-sb-key" type="password" placeholder="eyJ..." style="font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);width:100%;box-sizing:border-box;outline:none">
       </div>
+      <div class="fg" style="margin-bottom:8px">
+        <label>Sync-ID <span style="font-weight:400;color:var(--muted)">(gleich auf allen Geräten)</span></label>
+        <input id="st-sb-id" type="text" placeholder="main" style="font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);width:100%;box-sizing:border-box;outline:none">
+      </div>
       <div class="fg" style="margin-bottom:10px;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="st-sb-enabled" style="width:18px;height:18px;accent-color:var(--accent)">
         <label for="st-sb-enabled" style="margin:0;font-size:13px">Automatisch synchronisieren</label>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick="syncFromSupabase()">↓ Von Cloud laden</button>
-        <button class="btn btn-ghost btn-sm" onclick="syncToSupabase()">↑ In Cloud sichern</button>
+        <button class="btn btn-ghost btn-sm" onclick="forceLoadFromSupabase()">↓ Von Cloud laden</button>
+        <button class="btn btn-ghost btn-sm" onclick="forcePushToSupabase()">↑ In Cloud sichern</button>
       </div>
       <div id="sync-status" style="font-size:11px;color:var(--text2);margin-top:8px"></div>
     </div>
