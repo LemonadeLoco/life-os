@@ -366,6 +366,8 @@ function renderPipeline(){
   const counts={all:prospects.length};
   STAGE_ORDER.forEach(s=>{counts[s]=prospects.filter(p=>p.stage===s).length;});
   ['all',...STAGE_ORDER].forEach(s=>{const el=document.getElementById('ct-'+s);if(el)el.textContent=counts[s]||0;});
+  const _fuEl=document.getElementById('ct-followup');
+  if(_fuEl)_fuEl.textContent=prospects.filter(p=>p.stage==='followup'||isFollowupDue(p)||isLoomSentFollowupDue(p)).length;
   const fuDue=prospects.filter(p=>isFollowupDue(p)).length;
   const loomSentDue=prospects.filter(p=>isLoomSentFollowupDue(p)).length;
   const loomCount=counts['loom']||0;
@@ -376,7 +378,7 @@ function renderPipeline(){
   if(loomPill){loomPill.classList.toggle('alert',loomCount>0&&activeFilter!=='loom');}
   if(loomSentPill){loomSentPill.classList.toggle('alert',loomSentDue>0&&activeFilter!=='loom_sent');}
   const searchVal=(document.getElementById('prospect-search')?.value||'').toLowerCase().trim();
-  let filtered=activeFilter==='all'?prospects:prospects.filter(p=>p.stage===activeFilter);
+  let filtered=activeFilter==='all'?prospects:activeFilter==='followup'?prospects.filter(p=>p.stage==='followup'||isFollowupDue(p)||isLoomSentFollowupDue(p)):prospects.filter(p=>p.stage===activeFilter);
   if(searchVal)filtered=filtered.filter(p=>
     p.name.toLowerCase().includes(searchVal)||
     (p.type||'').toLowerCase().includes(searchVal)||
@@ -1211,6 +1213,20 @@ function getMilestones(){
     {id:'ms_dm100w', text:'Volume Week',         xp:200, icon:'📊',autoKey:'dm100w',   rarity:'epic',     flavor:'100 DMs in einer Woche',                    system:true,done:false,doneDate:null},
     // ── REVIEW HABIT ───────────────────────────────────────────────────────────
     {id:'ms_rev10',  text:'Pattern Recognition', xp:150, icon:'🔍',autoKey:'review10', rarity:'rare',     flavor:'10 Weekly Reviews — du erkennst Muster',    system:true,done:false,doneDate:null},
+    // ── EXTREME MILESTONES ─────────────────────────────────────────────────────
+    {id:'ms_won5',     text:'Empire Start',         xp:2000,icon:'🏆',autoKey:'won5',      rarity:'legendary',flavor:'5 Kunden — du bist eine Agency',              system:true,done:false,doneDate:null},
+    {id:'ms_won10',    text:'Empire',               xp:5000,icon:'👑',autoKey:'won10',     rarity:'legendary',flavor:'10 Kunden — Legende',                          system:true,done:false,doneDate:null},
+    {id:'ms_nn50',     text:'Iron Identity',        xp:800, icon:'🪨',autoKey:'nn50',      rarity:'legendary',flavor:'50 Tage Non-Neg in Folge',                     system:true,done:false,doneDate:null},
+    {id:'ms_nn100',    text:'Unbreakable Identity', xp:2000,icon:'💎',autoKey:'nn100',     rarity:'legendary',flavor:'100 Tage — du bist neu definiert',              system:true,done:false,doneDate:null},
+    {id:'ms_dm2k',     text:'Two Thousand',         xp:1000,icon:'🦁',autoKey:'dm2000',    rarity:'legendary',flavor:'2000 DMs insgesamt',                           system:true,done:false,doneDate:null},
+    {id:'ms_dm5k',     text:'Five K',               xp:3000,icon:'🌋',autoKey:'dm5000',    rarity:'legendary',flavor:'5000 DMs — du hast alles gegeben',             system:true,done:false,doneDate:null},
+    {id:'ms_morn60',   text:'Two Month Protocol',   xp:1000,icon:'🌞',autoKey:'morning60', rarity:'legendary',flavor:'60 Tage Morgenritual in Folge',                system:true,done:false,doneDate:null},
+    {id:'ms_rev25',    text:'Half Year Analyst',    xp:300, icon:'📐',autoKey:'review25',  rarity:'epic',     flavor:'25 Weekly Reviews — halbes Jahr Klarheit',    system:true,done:false,doneDate:null},
+    {id:'ms_rev50',    text:'Annual Reviewer',      xp:1000,icon:'🗂️',autoKey:'review50',  rarity:'legendary',flavor:'50 Weekly Reviews — ein volles Jahr',         system:true,done:false,doneDate:null},
+    {id:'ms_perf30',   text:'Perfect Month',        xp:1000,icon:'🌟',autoKey:'perfect30', rarity:'legendary',flavor:'30 perfekte Tage',                            system:true,done:false,doneDate:null},
+    {id:'ms_pipe50',   text:'Full Arsenal',         xp:300, icon:'🏗️',autoKey:'pipe50',    rarity:'epic',     flavor:'50 aktive Prospects gleichzeitig',            system:true,done:false,doneDate:null},
+    {id:'ms_reply25',  text:'Conversation Machine', xp:300, icon:'🗣️',autoKey:'reply25',   rarity:'epic',     flavor:'25 Replies erhalten',                         system:true,done:false,doneDate:null},
+    {id:'ms_state100', text:'Inner Compass Master', xp:400, icon:'🧭',autoKey:'state100',  rarity:'epic',     flavor:'100 State-Eintraege — du kennst dich',         system:true,done:false,doneDate:null},
   ];
   const saved=load(SK.milestones,null);
   if(!saved)return defaults;
@@ -1366,6 +1382,15 @@ function renderMilestones(targetId){
     stateHigh:{val:getStateLog().filter(e=>e.value>=9).length,max:1},
     dm100w:{val:(()=>{const wkStart=new Date(getWeekKey()+'T00:00:00');return Object.entries(days).filter(([d])=>new Date(d+'T00:00:00')>=wkStart).reduce((s,[,a])=>s+(a||[]).length,0);})(),max:100},
     review10:{val:reviewTotal,max:10},
+    won5:{val:wonTotal,max:5},won10:{val:wonTotal,max:10},
+    nn50:{val:nnCurStreak,max:50},nn100:{val:nnCurStreak,max:100},
+    dm2000:{val:totalDMs,max:2000},dm5000:{val:totalDMs,max:5000},
+    morning60:{val:morningStreakCurrent,max:60},
+    review25:{val:reviewTotal,max:25},review50:{val:reviewTotal,max:50},
+    perfect30:{val:perfectCount,max:30},
+    pipe50:{val:activePipeline,max:50},
+    reply25:{val:followupTotal,max:25},
+    state100:{val:getStateLog().length,max:100},
   };
 
   const sysAchs=milestones.filter(ms=>ms.system);
@@ -1421,7 +1446,7 @@ function renderMilestones(targetId){
 
   // System achievements: unlocked first, then locked sorted by xp
   const unlocked=sysAchs.filter(ms=>ms.done).sort((a,b)=>new Date(b.doneDate)-new Date(a.doneDate));
-  const locked=sysAchs.filter(ms=>!ms.done).sort((a,b)=>(a.xp||50)-(b.xp||50));
+  const locked=sysAchs.filter(ms=>!ms.done).sort((a,b)=>{const rd=(rarityOrder[a.rarity||'common']||0)-(rarityOrder[b.rarity||'common']||0);return rd!==0?rd:(a.xp||50)-(b.xp||50);});
 
   if(unlocked.length){
     const hdr=document.createElement('div');
@@ -1582,6 +1607,15 @@ function checkAutoAchievements(){
     stateHigh:highStateCount>=1,
     dm100w:weekDMs>=100,
     review10:reviewTotal>=10,
+    won5:wonTotal>=5,won10:wonTotal>=10,
+    nn50:nnCurStreak>=50,nn100:nnCurStreak>=100,
+    dm2000:totalDMs>=2000,dm5000:totalDMs>=5000,
+    morning60:morningStreakCurrent>=60,
+    review25:reviewTotal>=25,review50:reviewTotal>=50,
+    perfect30:perfectCount>=30,
+    pipe50:activePipeline>=50,
+    reply25:followupTotal>=25,
+    state100:stateLog.length>=100,
   };
 
   const newlyUnlocked=[];
@@ -2542,6 +2576,66 @@ function _getSyncRowId(){
   const s=getSupabaseSettings();
   return (s.id||'main').trim()||'main';
 }
+function _mergeById(localArr,remoteArr,idFn,tsFn){
+  const map={};
+  (remoteArr||[]).forEach(item=>{map[idFn(item)]=item;});
+  (localArr||[]).forEach(item=>{
+    const key=idFn(item);
+    if(!map[key]){map[key]=item;}
+    else{const lt=tsFn(item),rt=tsFn(map[key]);if(lt>rt)map[key]=item;}
+  });
+  return Object.values(map);
+}
+function _mergeByField(localArr,remoteArr,field){
+  const seen=new Set();const result=[];
+  [...(remoteArr||[]),...(localArr||[])].forEach(item=>{
+    const k=item[field];if(!seen.has(k)){seen.add(k);result.push(item);}
+  });
+  return result.sort((a,b)=>{
+    const av=typeof a[field]==='number'?a[field]:new Date(a[field]).getTime();
+    const bv=typeof b[field]==='number'?b[field]:new Date(b[field]).getTime();
+    return av-bv;
+  });
+}
+function _mergeDays(local,remote){
+  const merged={...remote};
+  Object.entries(local||{}).forEach(([date,entries])=>{
+    if(!merged[date]){merged[date]=entries;}
+    else{const tsSet=new Set(merged[date].map(e=>e.timestamp));(entries||[]).forEach(e=>{if(!tsSet.has(e.timestamp))merged[date].push(e);});}
+  });
+  return merged;
+}
+function _mergeMilestones(localArr,remoteArr){
+  const map={};
+  (remoteArr||[]).forEach(m=>{map[m.id]={...m};});
+  (localArr||[]).forEach(m=>{
+    if(!map[m.id]){map[m.id]=m;}
+    else if(m.done&&!map[m.id].done){map[m.id].done=true;map[m.id].doneDate=m.doneDate||map[m.id].doneDate;}
+  });
+  return Object.values(map);
+}
+function _mergeDailyLock(local,remote){
+  if(!local&&!remote)return{date:null,gratitudeDone:false,contractsDone:false};
+  if(!local)return remote;if(!remote)return local;
+  if(local.date!==remote.date)return(local.date||'')>(remote.date||'')?local:remote;
+  return{date:local.date,gratitudeDone:!!(local.gratitudeDone||remote.gratitudeDone),contractsDone:!!(local.contractsDone||remote.contractsDone),breathingDone:!!(local.breathingDone||remote.breathingDone)};
+}
+function mergeData(local,remote){
+  const merged={...remote};
+  const pTsFn=p=>p.history&&p.history.length?Math.max(...p.history.map(h=>h.ts||0)):(p.createdAt?new Date(p.createdAt).getTime():0);
+  merged['fpcm_prospects']=_mergeById(local['fpcm_prospects'],remote['fpcm_prospects'],p=>p.id,pTsFn);
+  merged['phq_stateLog']=_mergeByField(local['phq_stateLog'],remote['phq_stateLog'],'ts');
+  merged['fpcm_days']=_mergeDays(local['fpcm_days'],remote['fpcm_days']);
+  merged['fpcm_reviews']=_mergeByField(local['fpcm_reviews'],remote['fpcm_reviews'],'date');
+  merged['fpcm_milestones']=_mergeMilestones(local['fpcm_milestones'],remote['fpcm_milestones']);
+  const lxp=(local['fpcm_xp']||{total:0}).total||0;
+  const rxp=(remote['fpcm_xp']||{total:0}).total||0;
+  merged['fpcm_xp']={total:Math.max(lxp,rxp)};
+  merged['life_dailyLock']=_mergeDailyLock(local['life_dailyLock'],remote['life_dailyLock']);
+  const lp=local['life_lastStatePopup'],rp=remote['life_lastStatePopup'];
+  merged['life_lastStatePopup']=lp&&rp?(new Date(lp)>new Date(rp)?lp:rp):(lp||rp||null);
+  return merged;
+}
 function exportAllData(){
   const out={_exportedAt:new Date().toISOString()};
   Object.values(SK).forEach(k=>{
@@ -2610,9 +2704,10 @@ async function forceLoadFromSupabase(){
       _setSyncStatus('Keine Daten gefunden — zuerst von einem anderen Gerät hochladen.');
       return;
     }
-    importAllData(rows[0].data);
+    const merged=mergeData(exportAllData(),rows[0].data);
+    importAllData(merged);
     localStorage.setItem('lo_last_synced',rows[0].updated_at);
-    _setSyncStatus('✓ Geladen — Stand: '+new Date(rows[0].updated_at).toLocaleString('de-DE'));
+    _setSyncStatus('✓ Zusammengeführt — Stand: '+new Date(rows[0].updated_at).toLocaleString('de-DE'));
     setTimeout(()=>location.reload(),900);
   }catch(e){_setSyncStatus('Fehler: '+(e.message||'Unbekannt'));}
 }
@@ -2632,10 +2727,12 @@ async function syncFromSupabase(){
     const remoteTs=new Date(rows[0].updated_at).getTime();
     const localTs=new Date(localStorage.getItem('lo_last_synced')||0).getTime();
     if(remoteTs>localTs){
-      importAllData(rows[0].data);
+      const merged=mergeData(exportAllData(),rows[0].data);
+      importAllData(merged);
       localStorage.setItem('lo_last_synced',rows[0].updated_at);
+      await _pushToSupabase(s);
       location.reload();
-    } else if(localTs>remoteTs){
+    } else {
       await _pushToSupabase(s);
     }
   }catch(e){}
