@@ -9,7 +9,7 @@ const SK={
   stateLog:'phq_stateLog',morningRitual:'phq_morningRitual',manifesto:'phq_manifesto',affirmations:'phq_affirmations',
   paperRitual:'phq_paperRitual',morningStreak:'phq_morningStreak',perfectDays:'phq_perfectDays',
   settings:'life_settings',dailyLock:'life_dailyLock',penaltyApplied:'life_penaltyApplied',
-  idbBackup:'life_idb_ts',
+  idbBackup:'life_idb_ts',lastStatePopup:'life_lastStatePopup',
   deviceId:'lo_device_id',supabaseSettings:'lo_supabase',
   nnLabels:'lo_nn_labels'
 };
@@ -2184,7 +2184,7 @@ function scheduleStateNotification(){
   const s=getSettings();
   if(!s.stateReminderHours||s.stateReminderHours===0)return;
   const intervalMs=s.stateReminderHours*3600*1000;
-  const lastStr=localStorage.getItem('life_lastStatePopup');
+  const lastStr=load(SK.lastStatePopup,null);
   const lastMs=lastStr?new Date(lastStr).getTime():Date.now();
   const nextMs=Math.max(Date.now()+60000,lastMs+intervalMs);
   const delayMs=nextMs-Date.now();
@@ -2381,7 +2381,7 @@ function submitStatePopup(){
   const stateLog=getStateLog();
   stateLog.push({ts:Date.now(),rating:val,tags,note});
   save(SK.stateLog,stateLog);
-  localStorage.setItem('life_lastStatePopup',new Date().toISOString());
+  save(SK.lastStatePopup,new Date().toISOString());
   document.getElementById('state-popup')?.classList.remove('active');
   document.querySelectorAll('#sp-tags .state-tag').forEach(t=>t.classList.remove('active'));
   const noteEl=document.getElementById('sp-note');if(noteEl)noteEl.value='';
@@ -2395,7 +2395,7 @@ function skipStatePopup(){
   const xpData=getXP();
   xpData.total=Math.max(0,xpData.total-penalty);
   save(SK.xp,xpData);
-  localStorage.setItem('life_lastStatePopup',new Date().toISOString());
+  save(SK.lastStatePopup,new Date().toISOString());
   document.getElementById('state-popup')?.classList.remove('active');
   showXPToast('-'+penalty+' XP','⚠️','State übersprungen — Kosten der Vermeidung');
   renderXPBar();
@@ -2405,7 +2405,7 @@ function checkStatePopup(){
   if(mr.date!==todayStr()||!mr.stateRating)return;
   const s=getSettings();
   if(s.stateReminderHours===0)return;
-  const lastStr=localStorage.getItem('life_lastStatePopup');
+  const lastStr=load(SK.lastStatePopup,null);
   if(lastStr){
     const diffHours=(Date.now()-new Date(lastStr).getTime())/3600000;
     if(diffHours<s.stateReminderHours)return;
@@ -2579,6 +2579,20 @@ async function forcePushToSupabase(){
   try{
     await _pushToSupabase(s);
     _setSyncStatus('✓ Gesichert — '+new Date().toLocaleTimeString('de-DE'));
+  }catch(e){_setSyncStatus('Fehler: '+(e.message||'Unbekannt'));}
+}
+async function cleanupSupabaseRows(){
+  const s=getSupabaseSettings();
+  if(!s.url||!s.key){_setSyncStatus('Bitte URL und Key eingeben.');return;}
+  const rowId=_getSyncRowId();
+  _setSyncStatus('Räumt auf…');
+  try{
+    const res=await fetch(`${s.url}/rest/v1/life_os_sync?id=neq.${encodeURIComponent(rowId)}`,{
+      method:'DELETE',
+      headers:{apikey:s.key,Authorization:`Bearer ${s.key}`,Prefer:'return=minimal'}
+    });
+    if(!res.ok){_setSyncStatus('Fehler: HTTP '+res.status);return;}
+    _setSyncStatus('✓ Alte Einträge gelöscht');
   }catch(e){_setSyncStatus('Fehler: '+(e.message||'Unbekannt'));}
 }
 async function forceLoadFromSupabase(){
