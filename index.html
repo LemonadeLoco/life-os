@@ -63,6 +63,9 @@
   <!-- ===== MORGEN (Start) ===== -->
   <div id="tab-start" class="tab-panel active">
 
+    <!-- Critical Priority Alert -->
+    <div id="critical-priority-card" class="card" style="display:none;margin-bottom:14px;border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.05)"></div>
+
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="card-label" style="margin-bottom:0">Non-Negotiables — heute</div>
@@ -180,6 +183,11 @@
 
   <!-- ===== OUTREACH (Pipeline + DMs + Sales Call) ===== -->
   <div id="tab-outreach" class="tab-panel">
+
+    <!-- Outreach State Banner -->
+    <div id="outreach-state-banner" class="outreach-state-banner banner-warn" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:10px;margin-bottom:12px;font-size:13px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--text)">
+      <span>State-Check laden…</span>
+    </div>
 
     <!-- Sub Navigation -->
     <div class="sub-nav">
@@ -448,6 +456,11 @@
 
   <!-- ===== MINDSET ===== -->
   <div id="tab-mindset" class="tab-panel">
+
+    <!-- Daily Wisdom Card -->
+    <div id="daily-wisdom-card" class="card" style="margin-bottom:14px;border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.05)">
+      <div style="color:var(--muted);font-size:13px">Wird geladen…</div>
+    </div>
 
     <div class="goal-card">
       <div class="gc-tag">Dein Warum</div>
@@ -897,6 +910,10 @@
           <option value="0">Deaktiviert</option>
         </select>
       </div>
+      <div class="fg" style="margin-bottom:8px;flex-direction:row;align-items:flex-start;gap:10px">
+        <input type="checkbox" id="st-alarm-times" checked style="width:18px;height:18px;accent-color:var(--amber);flex-shrink:0;margin-top:2px">
+        <label for="st-alarm-times" style="margin:0;font-size:13px;line-height:1.5">Alessandro Alarm-Zeiten: <strong>11:00 / 15:00 / 18:00</strong><br><span style="color:var(--muted);font-size:11px">Ersetzt den Intervall-Popup zu diesen festen Zeiten</span></label>
+      </div>
       <div class="fg" style="margin-bottom:0">
         <label>Push-Benachrichtigungen (wenn App im Hintergrund)</label>
         <button class="btn btn-ghost btn-sm" onclick="requestNotificationPermission()">Benachrichtigungen aktivieren 🔔</button>
@@ -971,6 +988,30 @@
     <div class="state-popup-actions">
       <button class="btn btn-primary btn-full" onclick="submitStatePopup()">State loggen +5 XP</button>
       <button class="btn btn-danger btn-full btn-sm" onclick="skipStatePopup()">Überspringen −5 XP</button>
+    </div>
+  </div>
+</div>
+
+<!-- Outreach Reset Modal -->
+<div id="outreach-reset-modal" class="state-popup" onclick="if(event.target===this)closeOutreachReset()">
+  <div class="state-popup-card" style="max-width:360px">
+    <div id="or-content"></div>
+  </div>
+</div>
+
+<!-- Critical Priority Edit Modal -->
+<div id="critical-priority-modal" class="state-popup" onclick="if(event.target===this)document.getElementById('critical-priority-modal').classList.remove('active')">
+  <div class="state-popup-card" style="max-width:360px">
+    <div style="font-size:18px;font-weight:700;color:var(--amber);margin-bottom:16px">⚠ Kritische Priorität</div>
+    <div class="fg"><label style="font-size:13px;color:var(--muted);margin-bottom:4px;display:block">Was ist die kritische Aufgabe?</label>
+      <input type="text" id="cp-title" placeholder="z.B. Flug nach Deutschland buchen" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit"></div>
+    <div class="fg"><label style="font-size:13px;color:var(--muted);margin-bottom:4px;display:block">Deadline</label>
+      <input type="date" id="cp-deadline" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit"></div>
+    <div class="fg"><label style="font-size:13px;color:var(--muted);margin-bottom:4px;display:block">Notiz (optional)</label>
+      <input type="text" id="cp-note" placeholder="z.B. Biktarvy läuft Mitte Juni ab" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button onclick="saveCriticalPriority()" class="btn btn-amber" style="flex:1">Speichern</button>
+      <button onclick="document.getElementById('critical-priority-modal').classList.remove('active')" class="btn btn-ghost btn-sm">Abbrechen</button>
     </div>
   </div>
 </div>

@@ -11,7 +11,11 @@ const SK={
   settings:'life_settings',dailyLock:'life_dailyLock',penaltyApplied:'life_penaltyApplied',
   idbBackup:'life_idb_ts',lastStatePopup:'life_lastStatePopup',
   deviceId:'lo_device_id',supabaseSettings:'lo_supabase',
-  nnLabels:'lo_nn_labels'
+  nnLabels:'lo_nn_labels',
+  firedAlarmsToday:'life_firedAlarms',
+  criticalPriority:'life_criticalPriority',
+  pinnedWisdom:'life_pinnedWisdom',
+  wisdomIndex:'life_wisdomIdx'
 };
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch(e){return d;}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}  _scheduleSyncToSupabase();};
@@ -46,6 +50,71 @@ const LEVELS=[
   {level:10,name:'Empire Builder',  min:11000, max:16999},
 ];
 const PRESTIGE_NAMES=['Shadow Walker','Dark Horse','Phantom Closer','Apex Operator','Legend','Myth','The 0.1%'];
+
+// ── DAILY WISDOM ──────────────────────────────────────────────────────────────
+const WISDOM_ENTRIES=[
+  {q:'Du bist nicht deine Gedanken. Du bist das Bewusstsein dahinter.',ctx:'Alessandro, May 17 — Consciousness Foundation'},
+  {q:'Awareness ist der Schritt vor der Reaktion. Frage dich: Ist diese Reaktion es wert?',ctx:'Alessandro, May 17 — Awareness before reaction'},
+  {q:'Es ist kein strategisches Spiel. Es ist ein spirituelles Spiel der Selbstverbesserung.',ctx:'Alessandro — Die universelle Lektion'},
+  {q:'Die gleiche Situation + ein anderer State = ein völlig anderes Ergebnis.',ctx:'Alessandro — State ist die einzige Variable'},
+  {q:'Outreach aus Angst verscheucht Kunden. Geh rein als jemand, der wählt — nicht als jemand, der braucht.',ctx:'Alessandro — Neediness Principle'},
+  {q:'Neediness repels. Abundance attracts.',ctx:'Alessandro — Sales Framework'},
+  {q:'Wenn das External das Internal bestimmt, bist du auf einem emotionalen Lebens-Rollercoaster.',ctx:'Alessandro, May 17 — State Control'},
+  {q:'Das Universum ist ein Kellner. Vage Bestellungen bekommen vage Ergebnisse.',ctx:'Alessandro — Goal Specificity'},
+  {q:'Verbotene Wörter: wahrscheinlich / eines Tages / ich hoffe / ich versuche.',ctx:'Alessandro — Language Hygiene'},
+  {q:'Mach Content, den du selbst gerne siehst. Höre nie auf zu posten.',ctx:'Alessandro, May 17 — Personal Brand Philosophy'},
+  {q:'5–10k im Monat ist Freiheit. Alles darüber ist Lifestyle-Inflation.',ctx:'Alessandro, May 17 — Money Calibration'},
+  {q:'Elite-Events sind ein Nebenprodukt der Arbeit — kein Ziel zum Nachjagen.',ctx:'Alessandro, May 17 — Cannes Reality Check'},
+  {q:'Zero Facts Mindset: Behandle jeden gleich. Kein Fanboy-Energy.',ctx:'Alessandro, May 17 — Networking'},
+  {q:'Die richtigen Menschen finden dich, wenn du in hoher Frequenz bist.',ctx:'Alessandro, May 17 — Energy attracts'},
+  {q:'Vor jeder Emotion: eine Pause. Bin ich dieser Reaktion wert?',ctx:'Alessandro, May 17 — Awareness'},
+  {q:'Kein Ziel ohne: exaktes Datum, Betrag, Nische, Anzahl Kunden, Wie es passiert.',ctx:'Alessandro — The Waiter Analogy'},
+  {q:'Das Gefühl, das du mit in den Schlaf nimmst, ist das Gefühl, mit dem du aufwachst.',ctx:'Alessandro — Evening Ritual'},
+  {q:'Selbstsabotage Wurzel: Ich operiere aus Mangel. Ich fokussiere mich auf das, was ich nicht habe.',ctx:'Alessandro — 5 Levels of Why'},
+  {q:'Marketing lehrt dich, dir selbst zu vertrauen. Alles andere wird dann leicht.',ctx:'Alessandro, May 17 — Adam\'s segment'},
+  {q:'Ich bin dankbar, dass [Ergebnis] bis [genaues Datum] passiert ist.',ctx:'Alessandro — Manifesto Letter Format'},
+];
+function getDayOfYear(){const n=new Date(),s=new Date(n.getFullYear(),0,0);return Math.floor((n-s)/864e5);}
+function getWisdomIndex(){
+  const stored=load(SK.wisdomIndex,{date:'',idx:0});
+  const today=todayStr();
+  if(stored.date!==today){const idx=getDayOfYear()%WISDOM_ENTRIES.length;save(SK.wisdomIndex,{date:today,idx});return idx;}
+  return stored.idx;
+}
+function getPinnedWisdom(){return load(SK.pinnedWisdom,[]);}
+function togglePinWisdom(idx){
+  const pins=getPinnedWisdom();
+  const i=pins.indexOf(idx);
+  if(i===-1)pins.push(idx);else pins.splice(i,1);
+  save(SK.pinnedWisdom,pins);
+  renderDailyWisdom();
+}
+function advanceWisdom(){
+  const stored=load(SK.wisdomIndex,{date:todayStr(),idx:getDayOfYear()%WISDOM_ENTRIES.length});
+  stored.idx=(stored.idx+1)%WISDOM_ENTRIES.length;
+  save(SK.wisdomIndex,stored);
+  renderDailyWisdom();
+}
+function renderDailyWisdom(){
+  const el=document.getElementById('daily-wisdom-card');if(!el)return;
+  const idx=getWisdomIndex();
+  const w=WISDOM_ENTRIES[idx];
+  const pins=getPinnedWisdom();
+  const isPinned=pins.includes(idx);
+  const pinnedHtml=pins.length?`<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin-bottom:8px">MEINE ANKER</div>`+
+    pins.map(pi=>`<div style="font-size:12px;color:var(--text);padding:6px 10px;background:var(--surface2);border-radius:8px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span>${esc(WISDOM_ENTRIES[pi].q)}</span><button onclick="togglePinWisdom(${pi})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;flex-shrink:0">✕</button></div>`).join('')+
+    `</div>`:'' ;
+  el.innerHTML=`
+    <div style="font-size:11px;font-weight:700;color:var(--amber);letter-spacing:.08em;margin-bottom:10px">DENK DRAN HEUTE</div>
+    <div style="font-size:15px;line-height:1.6;color:var(--text);margin-bottom:8px">"${esc(w.q)}"</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px">${esc(w.ctx)}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="togglePinWisdom(${idx})" class="btn btn-ghost btn-xs" style="color:${isPinned?'var(--amber)':'var(--muted)'}">${isPinned?'★ Gemerkt':'☆ Merken'}</button>
+      <button onclick="advanceWisdom()" class="btn btn-ghost btn-xs">Weiter →</button>
+    </div>
+    ${pinnedHtml}
+  `;
+}
 function computeLevel(xp){
   const found=LEVELS.find(l=>xp<=l.max);
   if(found){
@@ -2258,12 +2327,142 @@ function restoreBreathingButton(){
   if((lock.date===todayStr()&&lock.breathingDone)||!!nn.meditation)_markBreathingDone();
 }
 
+// ── OUTREACH STATE BANNER & FEAR RESET ───────────────────────────────────────
+const OUTREACH_REFRAMES=[
+  'Ich wähle, ob ich diesen Kunden nehme. Er braucht mich mehr als ich ihn brauche.',
+  'Mein Wert existiert unabhängig davon, ob diese Person Ja sagt.',
+  'Ich bin dankbar. Ich arbeite aus Stärke — nicht aus Angst.',
+  'Neediness repels. Abundance attracts. Was treibt mich gerade an?',
+  'Clients feel the energy behind the message before they read the words.',
+];
+function getLastStateRating(){
+  const log=getStateLog();
+  const mr=getMorningRitual();
+  const today=todayStr();
+  const todayEntries=log.filter(e=>new Date(e.ts).toISOString().split('T')[0]===today);
+  if(todayEntries.length)return todayEntries[todayEntries.length-1].rating;
+  if(mr.date===today&&mr.stateRating)return mr.stateRating;
+  return null;
+}
+function renderOutreachStateBanner(){
+  const el=document.getElementById('outreach-state-banner');if(!el)return;
+  const rating=getLastStateRating();
+  if(rating===null){
+    el.className='outreach-state-banner banner-warn';
+    el.innerHTML='<span>⚠ Kein State-Check heute. Outreach aus Angst verscheucht Kunden.</span><button onclick="openOutreachReset()" class="btn btn-xs btn-amber" style="flex-shrink:0">State-Reset</button>';
+  } else if(rating>=7){
+    el.className='outreach-state-banner banner-ok';
+    el.innerHTML='<span>✓ State: '+rating+'/10 — Guter Moment für Outreach.</span><button onclick="openOutreachReset()" class="btn btn-xs btn-ghost" style="flex-shrink:0">Reset</button>';
+  } else {
+    el.className='outreach-state-banner banner-warn';
+    el.innerHTML='<span>⚠ State: '+rating+'/10 — Reset empfohlen vor dem Outreach.</span><button onclick="openOutreachReset()" class="btn btn-xs btn-amber" style="flex-shrink:0">State-Reset</button>';
+  }
+}
+let _orBreathCount=0;
+let _orBreathInterval=null;
+function openOutreachReset(){
+  const modal=document.getElementById('outreach-reset-modal');if(!modal)return;
+  const rating=getLastStateRating();
+  const reframe=OUTREACH_REFRAMES[getDayOfYear()%OUTREACH_REFRAMES.length];
+  const ratingHtml=rating!==null?`<div style="text-align:center;margin-bottom:14px"><span style="font-size:28px;font-weight:800;color:${rating>=7?'var(--green)':'var(--amber)'}">${rating}</span><span style="font-size:14px;color:var(--muted)">/10</span></div>`:'';
+  document.getElementById('or-content').innerHTML=`
+    <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">State-Reset</div>
+    ${ratingHtml}
+    <div style="background:var(--surface2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:14px;line-height:1.6;color:var(--text);border-left:3px solid var(--amber)">"${esc(reframe)}"</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;text-align:center">5 Atemzüge — einatmen was du spüren willst, ausatmen was du loslässt.</div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div id="or-breath-circle" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--border);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);transition:all .5s ease">Start</div>
+      <div id="or-breath-label" style="font-size:12px;color:var(--muted);margin-bottom:10px">Bereit?</div>
+      <button onclick="startOrBreathing()" id="or-breath-btn" class="btn btn-purple btn-sm">Atemübung starten</button>
+    </div>
+    <button onclick="closeOutreachReset()" class="btn btn-amber btn-full">Ich bin bereit — Outreach starten</button>
+  `;
+  modal.classList.add('active');
+}
+function startOrBreathing(){
+  _orBreathCount=0;
+  clearInterval(_orBreathInterval);
+  const circle=document.getElementById('or-breath-circle');
+  const label=document.getElementById('or-breath-label');
+  const btn=document.getElementById('or-breath-btn');
+  if(btn)btn.style.display='none';
+  const phases=[
+    {text:'Einatmen',color:'var(--green)',scale:'scale(1.3)',dur:4000},
+    {text:'Halten',color:'var(--amber)',scale:'scale(1.3)',dur:2000},
+    {text:'Ausatmen',color:'var(--purple)',scale:'scale(1)',dur:4000},
+  ];
+  let phaseIdx=0;let breathNum=0;
+  function runPhase(){
+    if(breathNum>=5){if(circle)circle.style.cssText='width:72px;height:72px;border-radius:50%;border:3px solid var(--green);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--green);transition:all .5s ease';if(circle)circle.textContent='✓';if(label)label.textContent='Perfekt. Jetzt loslegen.';return;}
+    const ph=phases[phaseIdx];
+    if(circle){circle.textContent=ph.text;circle.style.cssText=`width:72px;height:72px;border-radius:50%;border:3px solid ${ph.color};margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:12px;color:${ph.color};transform:${ph.scale};transition:all .5s ease`;}
+    if(label)label.textContent='Atemzug '+(breathNum+1)+' von 5';
+    _orBreathInterval=setTimeout(()=>{
+      phaseIdx=(phaseIdx+1)%3;
+      if(phaseIdx===0)breathNum++;
+      runPhase();
+    },ph.dur);
+  }
+  runPhase();
+}
+function closeOutreachReset(){
+  clearInterval(_orBreathInterval);
+  document.getElementById('outreach-reset-modal')?.classList.remove('active');
+  renderOutreachStateBanner();
+}
+
+// ── CRITICAL PRIORITY ─────────────────────────────────────────────────────────
+function getCriticalPriority(){return load(SK.criticalPriority,{active:false,title:'',deadline:'',note:''});}
+function renderCriticalPriority(){
+  const el=document.getElementById('critical-priority-card');if(!el)return;
+  const cp=getCriticalPriority();
+  if(!cp.active||!cp.title){el.style.display='none';return;}
+  el.style.display='block';
+  const today=new Date();today.setHours(0,0,0,0);
+  const deadline=cp.deadline?new Date(cp.deadline+'T12:00:00'):null;
+  const daysLeft=deadline?Math.ceil((deadline-today)/(864e5)):null;
+  const overdue=daysLeft!==null&&daysLeft<0;
+  const urgentColor=overdue?'var(--red)':'var(--amber)';
+  const countdownHtml=daysLeft!==null?`<span style="font-size:22px;font-weight:800;color:${urgentColor}">${overdue?'ÜBERFÄLLIG':'Noch '+daysLeft+' Tag'+(Math.abs(daysLeft)!==1?'e':'')}</span>`:'';
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:${urgentColor};letter-spacing:.08em">⚠ KRITISCHE PRIORITÄT</div>
+      <button onclick="openCriticalPriorityEdit()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0" title="Bearbeiten">✎</button>
+    </div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">${esc(cp.title)}</div>
+    ${countdownHtml}
+    ${cp.note?`<div style="font-size:12px;color:var(--muted);margin-top:6px">${esc(cp.note)}</div>`:''}
+    <button onclick="clearCriticalPriority()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;margin-top:10px;padding:0">✓ Erledigt — entfernen</button>
+  `;
+}
+function openCriticalPriorityEdit(){
+  const cp=getCriticalPriority();
+  const modal=document.getElementById('critical-priority-modal');if(!modal)return;
+  document.getElementById('cp-title').value=cp.title||'';
+  document.getElementById('cp-deadline').value=cp.deadline||'';
+  document.getElementById('cp-note').value=cp.note||'';
+  modal.classList.add('active');
+}
+function saveCriticalPriority(){
+  const title=(document.getElementById('cp-title')?.value||'').trim();
+  const deadline=document.getElementById('cp-deadline')?.value||'';
+  const note=(document.getElementById('cp-note')?.value||'').trim();
+  save(SK.criticalPriority,{active:!!title,title,deadline,note});
+  document.getElementById('critical-priority-modal')?.classList.remove('active');
+  renderCriticalPriority();
+}
+function clearCriticalPriority(){
+  save(SK.criticalPriority,{active:false,title:'',deadline:'',note:''});
+  renderCriticalPriority();
+}
+
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
 function renderAll(){
   renderMission();renderPipeline();renderTemplates();renderStarred();
   updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();renderStart();renderZiele();
   renderReasonCards();renderXPBar();renderMorningRitual();renderStateLog();renderManifesto();renderAffirmations();
   renderAchFloatWidget();updateNavDots();
+  renderDailyWisdom();renderOutreachStateBanner();renderCriticalPriority();
 }
 
 // ── ACHIEVEMENT FLOAT WIDGET ──────────────────────────────────────────────────
@@ -2353,7 +2552,8 @@ function toggleTagesplan(){
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 function getSettings(){
-  return load(SK.settings,{dailyTarget:20,stateReminderHours:4,xpPenalty:10,defaultFollowUp:3});
+  const defaults={dailyTarget:20,stateReminderHours:4,xpPenalty:10,defaultFollowUp:3,alarmTimesEnabled:true,alarmTimes:['11:00','15:00','18:00']};
+  return Object.assign({},defaults,load(SK.settings,{}));
 }
 function openSettings(){
   const s=getSettings();
@@ -2366,6 +2566,8 @@ function openSettings(){
   if(iEl)iEl.value=s.stateReminderHours;
   if(pEl)pEl.value=s.xpPenalty;
   if(fuEl)fuEl.value=s.defaultFollowUp||3;
+  const atEl=document.getElementById('st-alarm-times');
+  if(atEl)atEl.checked=!!s.alarmTimesEnabled;
   const sb=getSupabaseSettings();
   const sbUrl=document.getElementById('st-sb-url');
   const sbKey=document.getElementById('st-sb-key');
@@ -2387,7 +2589,9 @@ function saveSettings(){
     dailyTarget,
     stateReminderHours:parseInt(document.getElementById('st-state-int')?.value)||4,
     xpPenalty:parseInt(document.getElementById('st-penalty')?.value)||10,
-    defaultFollowUp:parseInt(document.getElementById('st-followup')?.value)||3
+    defaultFollowUp:parseInt(document.getElementById('st-followup')?.value)||3,
+    alarmTimesEnabled:!!(document.getElementById('st-alarm-times')?.checked),
+    alarmTimes:['11:00','15:00','18:00']
   };
   save(SK.settings,s);
   const sbUrl=(document.getElementById('st-sb-url')?.value||'').trim();
@@ -2423,6 +2627,7 @@ function submitStatePopup(){
   showXPToast('+5 XP','📊','State geloggt: '+val+'/10');
   setTimeout(checkAutoAchievements,100);
   renderStateLog();
+  renderOutreachStateBanner();
 }
 function skipStatePopup(){
   const penalty=getSettings().xpPenalty;
@@ -2446,9 +2651,70 @@ function checkStatePopup(){
   }
   document.getElementById('state-popup')?.classList.add('active');
 }
+function checkSpecificTimeAlarms(){
+  const mr=getMorningRitual();
+  if(mr.date!==todayStr()||!mr.stateRating)return;
+  const s=getSettings();
+  if(!s.alarmTimesEnabled||!s.alarmTimes||!s.alarmTimes.length)return;
+  const now=new Date();
+  const nowMinutes=now.getHours()*60+now.getMinutes();
+  const today=todayStr();
+  const fired=load(SK.firedAlarmsToday,{date:'',times:[]});
+  if(fired.date!==today){fired.date=today;fired.times=[];}
+  let triggered=false;
+  for(const t of s.alarmTimes){
+    if(fired.times.includes(t))continue;
+    const [th,tm]=t.split(':').map(Number);
+    const targetMinutes=th*60+tm;
+    if(Math.abs(nowMinutes-targetMinutes)>3)continue;
+    const lastStr=load(SK.lastStatePopup,null);
+    if(lastStr&&(Date.now()-new Date(lastStr).getTime())<20*60*1000)continue;
+    fired.times.push(t);
+    triggered=true;
+    break;
+  }
+  if(triggered){
+    save(SK.firedAlarmsToday,fired);
+    document.getElementById('state-popup')?.classList.add('active');
+    if(Notification.permission==='granted'&&navigator.serviceWorker?.controller){
+      navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'State Check-In 📊',body:'Wie ist dein State gerade? Nimm dir 30 Sekunden.'});
+    }
+  }
+}
+function scheduleSpecificTimeNotifications(){
+  const s=getSettings();
+  if(!s.alarmTimesEnabled||!s.alarmTimes||!s.alarmTimes.length)return;
+  const now=new Date();
+  const today=todayStr();
+  const fired=load(SK.firedAlarmsToday,{date:'',times:[]});
+  if(fired.date!==today)fired.times=[];
+  for(const t of s.alarmTimes){
+    if(fired.times.includes(t))continue;
+    const [th,tm]=t.split(':').map(Number);
+    const target=new Date();
+    target.setHours(th,tm,0,0);
+    const delayMs=target.getTime()-now.getTime();
+    if(delayMs<=0)continue;
+    setTimeout(()=>{
+      const mr=getMorningRitual();
+      if(mr.date!==todayStr()||!mr.stateRating)return;
+      if(Notification.permission==='granted'&&navigator.serviceWorker?.controller){
+        navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'State Check-In 📊',body:'Wie ist dein State gerade? 5 Atemzüge zuerst.'});
+      }
+      const f=load(SK.firedAlarmsToday,{date:todayStr(),times:[]});
+      if(f.date!==todayStr()){f.date=todayStr();f.times=[];}
+      if(!f.times.includes(t)){f.times.push(t);save(SK.firedAlarmsToday,f);}
+      document.getElementById('state-popup')?.classList.add('active');
+    },delayMs);
+  }
+}
 function startStatePopupTimer(){
   checkStatePopup();
+  checkSpecificTimeAlarms();
+  scheduleSpecificTimeNotifications();
   setInterval(checkStatePopup,300000);
+  setInterval(checkSpecificTimeAlarms,60000);
+  window.addEventListener('focus',()=>{checkStatePopup();checkSpecificTimeAlarms();});
 }
 
 // ── ONCE-A-DAY LOCK ───────────────────────────────────────────────────────────
