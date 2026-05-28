@@ -317,8 +317,8 @@ function incrementDailyCounter(name){
 function getProspects(){return load(SK.prospects,[]);}
 function saveProspects(p){save(SK.prospects,p);}
 
-const STAGE_LABELS={dm_sent:'DM Gesendet',followup:'Follow-up',loom:'Loom',loom_sent:'Loom Gesendet',call_booked:'Call Gebucht',won:'Gewonnen',lost:'Lost'};
-const STAGE_ORDER=['dm_sent','followup','loom','loom_sent','call_booked','won','lost'];
+const STAGE_LABELS={dm_sent:'DM Gesendet',followup:'Follow-up',loom:'Loom',loom_sent:'Loom Gesendet',call_booked:'Call Gebucht',won:'Gewonnen',lost:'Lost',unqualified:'Nicht qualifiziert'};
+const STAGE_ORDER=['dm_sent','followup','loom','loom_sent','call_booked','won','lost','unqualified'];
 
 function submitAddProspect(){
   const name=document.getElementById('ap-name').value.trim();
@@ -620,6 +620,14 @@ function renderPipeline(){
     moveSelect.innerHTML='<option value="">Phase wählen…</option>'+
       STAGE_ORDER.filter(s=>s!==p.stage).map(s=>`<option value="${s}">${STAGE_LABELS[s]}</option>`).join('');
     moveSelect.onchange=function(){if(this.value){moveProspect(p.id,this.value);}};
+    if(!['unqualified','lost'].includes(p.stage)){
+      const unqBtn=document.createElement('button');
+      unqBtn.className='btn btn-ghost btn-xs';
+      unqBtn.style.cssText='color:var(--muted);flex-shrink:0';
+      unqBtn.textContent='Nicht qual.';
+      unqBtn.onclick=function(e){e.stopPropagation();moveProspect(p.id,'unqualified');};
+      moveRow.appendChild(unqBtn);
+    }
     const delBtn=document.createElement('button');
     delBtn.className='btn btn-danger btn-xs';
     delBtn.textContent='Löschen';
@@ -2092,10 +2100,11 @@ function switchTab(tab){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='review'){updateWeekStats();renderPastReviews();renderFunnel();renderPipelineSnap();renderStateAnalytics();renderKPIChart();document.getElementById('sat-banner').classList.toggle('visible',new Date().getDay()===6);}
-  if(tab==='mindset'){renderMission();renderAffirmations();renderStateLog();}
-  if(tab==='outreach'){renderMission();renderPipeline();renderTemplates();renderReasonCards();}
+  if(tab==='mindset'){renderMission();renderAffirmations();renderStateLog();renderDailyWisdom();}
+  if(tab==='outreach'){renderMission();renderPipeline();renderTemplates();renderReasonCards();renderOutreachStateBanner();}
   if(tab==='start')renderStart();
   if(tab==='ziele'){renderZiele();renderManifesto();}
+  checkStateGate();
 }
 
 function switchSubNav(sub){
@@ -2344,18 +2353,28 @@ function getLastStateRating(){
   if(mr.date===today&&mr.stateRating)return mr.stateRating;
   return null;
 }
+function _getNextAlarmTime(){
+  const s=getSettings();
+  if(!s.alarmTimesEnabled||!s.alarmTimes||!s.alarmTimes.length)return null;
+  const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();
+  for(const t of s.alarmTimes){const [th,tm]=t.split(':').map(Number);if(th*60+tm>nowMin)return t;}
+  return null;
+}
 function renderOutreachStateBanner(){
   const el=document.getElementById('outreach-state-banner');if(!el)return;
   const rating=getLastStateRating();
+  const nextAlarm=_getNextAlarmTime();
+  const nextHtml=nextAlarm?`<span style="font-size:11px;color:var(--muted);margin-left:4px">· Nächster Check: ${nextAlarm}</span>`:'';
+  const notifBtn=Notification&&Notification.permission!=='granted'?`<button onclick="requestNotificationPermission()" class="btn btn-xs btn-ghost" style="flex-shrink:0;margin-left:4px">🔔 Alerts</button>`:'';
   if(rating===null){
     el.className='outreach-state-banner banner-warn';
-    el.innerHTML='<span>⚠ Kein State-Check heute. Outreach aus Angst verscheucht Kunden.</span><button onclick="openOutreachReset()" class="btn btn-xs btn-amber" style="flex-shrink:0">State-Reset</button>';
+    el.innerHTML='<span>⚠ Kein State-Check heute. Outreach aus Angst verscheucht Kunden.'+nextHtml+'</span><span style="display:flex;gap:4px;align-items:center;flex-shrink:0">'+notifBtn+'<button onclick="openOutreachReset()" class="btn btn-xs btn-amber">State-Reset</button></span>';
   } else if(rating>=7){
     el.className='outreach-state-banner banner-ok';
-    el.innerHTML='<span>✓ State: '+rating+'/10 — Guter Moment für Outreach.</span><button onclick="openOutreachReset()" class="btn btn-xs btn-ghost" style="flex-shrink:0">Reset</button>';
+    el.innerHTML='<span>✓ State: '+rating+'/10 — Guter Moment für Outreach.'+nextHtml+'</span><span style="display:flex;gap:4px;align-items:center;flex-shrink:0">'+notifBtn+'<button onclick="openOutreachReset()" class="btn btn-xs btn-ghost">Reset</button></span>';
   } else {
     el.className='outreach-state-banner banner-warn';
-    el.innerHTML='<span>⚠ State: '+rating+'/10 — Reset empfohlen vor dem Outreach.</span><button onclick="openOutreachReset()" class="btn btn-xs btn-amber" style="flex-shrink:0">State-Reset</button>';
+    el.innerHTML='<span>⚠ State: '+rating+'/10 — Reset empfohlen vor dem Outreach.'+nextHtml+'</span><span style="display:flex;gap:4px;align-items:center;flex-shrink:0">'+notifBtn+'<button onclick="openOutreachReset()" class="btn btn-xs btn-amber">State-Reset</button></span>';
   }
 }
 let _orBreathCount=0;
@@ -2620,6 +2639,7 @@ function submitStatePopup(){
   stateLog.push({ts:Date.now(),rating:val,tags,note});
   save(SK.stateLog,stateLog);
   save(SK.lastStatePopup,new Date().toISOString());
+  _clearStateGate();
   document.getElementById('state-popup')?.classList.remove('active');
   document.querySelectorAll('#sp-tags .state-tag').forEach(t=>t.classList.remove('active'));
   const noteEl=document.getElementById('sp-note');if(noteEl)noteEl.value='';
@@ -2630,6 +2650,7 @@ function submitStatePopup(){
   renderOutreachStateBanner();
 }
 function skipStatePopup(){
+  if(_stateGated)return;
   const penalty=getSettings().xpPenalty;
   const xpData=getXP();
   xpData.total=Math.max(0,xpData.total-penalty);
@@ -2708,13 +2729,52 @@ function scheduleSpecificTimeNotifications(){
     },delayMs);
   }
 }
+let _stateGated=false;
+function checkStateGate(){
+  const s=getSettings();
+  if(!s.alarmTimesEnabled||!s.alarmTimes||!s.alarmTimes.length)return;
+  const mr=getMorningRitual();
+  if(mr.date!==todayStr()||!mr.stateRating)return;
+  const now=new Date();
+  const nowMinutes=now.getHours()*60+now.getMinutes();
+  const log=getStateLog();
+  for(const t of s.alarmTimes){
+    const [th,tm]=t.split(':').map(Number);
+    const targetMinutes=th*60+tm;
+    if(nowMinutes<targetMinutes)continue;
+    const alarmTs=new Date();alarmTs.setHours(th,tm,0,0);
+    const loggedAfter=log.some(e=>e.ts>=alarmTs.getTime());
+    if(!loggedAfter){
+      _showStatePopupGated();
+      return;
+    }
+  }
+}
+function _showStatePopupGated(){
+  _stateGated=true;
+  const popup=document.getElementById('state-popup');
+  if(!popup)return;
+  popup.classList.add('active','gated');
+  const tag=popup.querySelector('.state-popup-tag');
+  if(tag)tag.textContent='State-Rating erforderlich';
+}
+function _clearStateGate(){
+  _stateGated=false;
+  const popup=document.getElementById('state-popup');
+  if(!popup)return;
+  popup.classList.remove('gated');
+  const tag=popup.querySelector('.state-popup-tag');
+  if(tag)tag.textContent='State Check-In';
+}
 function startStatePopupTimer(){
   checkStatePopup();
   checkSpecificTimeAlarms();
+  checkStateGate();
   scheduleSpecificTimeNotifications();
   setInterval(checkStatePopup,300000);
   setInterval(checkSpecificTimeAlarms,60000);
-  window.addEventListener('focus',()=>{checkStatePopup();checkSpecificTimeAlarms();});
+  setInterval(checkStateGate,60000);
+  window.addEventListener('focus',()=>{checkStatePopup();checkSpecificTimeAlarms();checkStateGate();});
 }
 
 // ── ONCE-A-DAY LOCK ───────────────────────────────────────────────────────────
@@ -2827,6 +2887,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   updateNavDots();
   syncFromSupabase().catch(()=>{});
   _updateSyncStatus();
+  renderDailyWisdom();renderOutreachStateBanner();renderCriticalPriority();
+  scheduleStateNotification();
+  checkStateGate();
 });
 
 // ── SUPABASE CLOUD SYNC ───────────────────────────────────────────────────────

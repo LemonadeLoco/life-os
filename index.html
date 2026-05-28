@@ -257,6 +257,7 @@
         <button class="sf-pill" data-filter="call_booked" onclick="setFilter('call_booked')">Call <span class="sf-count" id="ct-call_booked">0</span></button>
         <button class="sf-pill" data-filter="won" onclick="setFilter('won')">Won <span class="sf-count" id="ct-won">0</span></button>
         <button class="sf-pill" data-filter="lost" onclick="setFilter('lost')">Lost <span class="sf-count" id="ct-lost">0</span></button>
+        <button class="sf-pill" data-filter="unqualified" onclick="setFilter('unqualified')">Nicht qual. <span class="sf-count" id="ct-unqualified">0</span></button>
       </div>
 
       <button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="toggleAddForm()">+ Prospect hinzufügen</button>
@@ -458,9 +459,7 @@
   <div id="tab-mindset" class="tab-panel">
 
     <!-- Daily Wisdom Card -->
-    <div id="daily-wisdom-card" class="card" style="margin-bottom:14px;border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.05)">
-      <div style="color:var(--muted);font-size:13px">Wird geladen…</div>
-    </div>
+    <div id="daily-wisdom-card" class="card" style="margin-bottom:14px;border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.05)"></div>
 
     <div class="goal-card">
       <div class="gc-tag">Dein Warum</div>
@@ -915,8 +914,9 @@
         <label for="st-alarm-times" style="margin:0;font-size:13px;line-height:1.5">Alessandro Alarm-Zeiten: <strong>11:00 / 15:00 / 18:00</strong><br><span style="color:var(--muted);font-size:11px">Ersetzt den Intervall-Popup zu diesen festen Zeiten</span></label>
       </div>
       <div class="fg" style="margin-bottom:0">
-        <label>Push-Benachrichtigungen (wenn App im Hintergrund)</label>
+        <label>Push-Benachrichtigungen</label>
         <button class="btn btn-ghost btn-sm" onclick="requestNotificationPermission()">Benachrichtigungen aktivieren 🔔</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.6">📱 <strong style="color:var(--text)">iPhone:</strong> App zum Home-Bildschirm hinzufügen (Teilen → Zum Home-Bildschirm), dann hier aktivieren. Ohne Installation erscheinen keine Benachrichtigungen.</div>
       </div>
     </div>
 
@@ -985,6 +985,7 @@
       <span class="state-tag" data-tag="Schlecht geschlafen" onclick="toggleStateTag(this)">Schlechter Schlaf</span>
     </div>
     <textarea id="sp-note" rows="2" placeholder="Was hat deinen State beeinflusst? (optional)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:10px;resize:none;font-family:inherit;outline:none"></textarea>
+    <div class="state-popup-gate-msg">Erforderlich — rate deinen State um fortzufahren.</div>
     <div class="state-popup-actions">
       <button class="btn btn-primary btn-full" onclick="submitStatePopup()">State loggen +5 XP</button>
       <button class="btn btn-danger btn-full btn-sm" onclick="skipStatePopup()">Überspringen −5 XP</button>
