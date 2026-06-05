@@ -384,11 +384,20 @@ function deleteProspect(id){
   renderPipeline();
 }
 
+function _moveToFollowupStage(p,prospects){
+  if(['dm_sent','loom_sent'].includes(p.stage)){
+    p.stage='followup';
+    p.history.push({action:STAGE_LABELS['followup'],date:todayStr(),ts:Date.now()});
+    saveProspects(prospects);
+  }
+  activeFilter='followup';
+}
 function setProspectFollowUp(id,days){
   const prospects=getProspects();
   const p=prospects.find(x=>x.id===id);if(!p)return;
   const d=new Date();d.setDate(d.getDate()+days);
   p.followUpAt=d.toISOString().split('T')[0];
+  _moveToFollowupStage(p,prospects);
   saveProspects(prospects);
   expandedId=id;renderPipeline();
   updateNavDots();
@@ -398,9 +407,17 @@ function setProspectFollowUpDate(id,dateStr){
   const prospects=getProspects();
   const p=prospects.find(x=>x.id===id);if(!p)return;
   p.followUpAt=dateStr;
+  _moveToFollowupStage(p,prospects);
   saveProspects(prospects);
   expandedId=id;renderPipeline();
   updateNavDots();
+}
+function togglePriority(id){
+  const prospects=getProspects();
+  const p=prospects.find(x=>x.id===id);if(!p)return;
+  p.priority=!p.priority;
+  saveProspects(prospects);
+  expandedId=id;renderPipeline();
 }
 function setProspectCallDate(id,dateStr){
   const prospects=getProspects();
@@ -469,6 +486,7 @@ function renderPipeline(){
     (p.type||'').toLowerCase().includes(searchVal)||
     (p.notes||'').toLowerCase().includes(searchVal)
   );
+  filtered.sort((a,b)=>(b.priority?1:0)-(a.priority?1:0));
   const listEl=document.getElementById('prospect-list');
   if(!filtered.length){
     listEl.innerHTML='<div class="empty-state">'+(activeFilter==='all'?'Noch keine Prospects. Fang an zu schreiben.':'Keine Prospects in dieser Phase.')+'</div>';
@@ -508,6 +526,7 @@ function renderPipeline(){
         <div class="pr-meta">${metaParts.join(' · ')}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <button class="priority-star-btn${p.priority?' active':''}" onclick="event.stopPropagation();togglePriority('${p.id}')" title="Priorität">★</button>
         ${!['lost'].includes(p.stage)?`<button class="msg-btn${msgCount>0?' has-msgs':''}" onclick="event.stopPropagation();incrementMsgCount('${p.id}')">💬${msgCount>0?' '+msgCount:''}</button>`:''}
         <span class="pr-chevron">${isExpanded?'▲':'▼'}</span>
       </div>`;
