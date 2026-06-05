@@ -390,8 +390,24 @@ function setProspectFollowUp(id,days){
   const d=new Date();d.setDate(d.getDate()+days);
   p.followUpAt=d.toISOString().split('T')[0];
   saveProspects(prospects);
-  renderPipeline();
+  expandedId=id;renderPipeline();
   updateNavDots();
+}
+function setProspectFollowUpDate(id,dateStr){
+  if(!dateStr)return;
+  const prospects=getProspects();
+  const p=prospects.find(x=>x.id===id);if(!p)return;
+  p.followUpAt=dateStr;
+  saveProspects(prospects);
+  expandedId=id;renderPipeline();
+  updateNavDots();
+}
+function setProspectCallDate(id,dateStr){
+  const prospects=getProspects();
+  const p=prospects.find(x=>x.id===id);if(!p)return;
+  p.callDate=dateStr||null;
+  saveProspects(prospects);
+  expandedId=id;renderPipeline();
 }
 
 function toggleFollowUpDropdown(id,btn){
@@ -483,6 +499,7 @@ function renderPipeline(){
         <div class="pr-name-row">
           <span class="pr-name">${esc(p.name)}</span>
           <span class="stage-badge sb-${p.stage}">${STAGE_LABELS[p.stage]||p.stage}</span>
+          ${p.stage==='call_booked'&&p.callDate?`<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);padding:2px 7px;border-radius:5px;flex-shrink:0">📞 ${fmtDate(p.callDate)}</span>`:''}
           ${due?'<span class="due-badge db-followup">Follow-up fällig</span>':''}
           ${loomDue?'<span class="due-badge db-loom">Loom ausstehend</span>':''}
           ${loomSentDueP?'<span class="due-badge db-followup">Follow-up fällig</span>':''}
@@ -589,25 +606,35 @@ function renderPipeline(){
       urlWrap.appendChild(urlRow);
       expandedDiv.appendChild(urlWrap);
     }
+    if(p.stage==='call_booked'){
+      const callDateWrap=document.createElement('div');
+      callDateWrap.style.cssText='margin-bottom:12px';
+      callDateWrap.innerHTML=`
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:6px">📞 Call-Datum</div>
+        <input type="date" id="call-date-${p.id}" value="${p.callDate||''}"
+          style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;background:var(--surface2);border:1px solid var(--green);border-radius:8px;color:var(--text);outline:none;font-family:inherit"
+          onclick="event.stopPropagation()"
+          onchange="event.stopPropagation();setProspectCallDate('${p.id}',this.value)">`;
+      expandedDiv.appendChild(callDateWrap);
+    }
     if(!['won','lost'].includes(p.stage)){
       const fuWrap=document.createElement('div');
-      fuWrap.style.cssText='position:relative;margin-bottom:12px';
+      fuWrap.style.cssText='margin-bottom:12px';
       const defDays=getSettings().defaultFollowUp||3;
       const fuDateDisplay=p.followUpAt?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${fmtDate(p.followUpAt)}</span>`:'';
       fuWrap.innerHTML=`
         <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Follow-up${fuDateDisplay}</div>
-        <div style="display:flex;gap:0">
-          <button class="btn btn-ghost btn-xs" style="border-radius:6px 0 0 6px;flex:1;justify-content:center"
-            onclick="event.stopPropagation();setProspectFollowUp('${p.id}',${defDays})">
-            In ${defDays} Tag${defDays===1?'':'en'}
-          </button>
-          <button class="btn btn-ghost btn-xs" style="border-radius:0 6px 6px 0;border-left:1px solid var(--border);padding:0 8px"
-            onclick="event.stopPropagation();const dd=document.getElementById('fu-dd-${p.id}');dd.style.display=dd.style.display==='block'?'none':'block'">▾</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          ${[1,2,3,5,7,14].map(d=>`<button class="btn btn-ghost btn-xs" style="flex-shrink:0"
+            onclick="event.stopPropagation();setProspectFollowUp('${p.id}',${d})">
+            +${d}d</button>`).join('')}
         </div>
-        <div id="fu-dd-${p.id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,.4)">
-          ${[1,2,3,4,5,7,14].map(d=>`<div style="padding:7px 12px;font-size:13px;cursor:pointer;border-radius:5px;color:var(--text)"
-            onclick="event.stopPropagation();setProspectFollowUp('${p.id}',${d});document.getElementById('fu-dd-${p.id}').style.display='none'"
-            onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">${d} Tag${d===1?'':'e'}</div>`).join('')}
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="date" id="fu-date-${p.id}" value="${p.followUpAt||''}"
+            style="flex:1;font-size:12px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);outline:none;font-family:inherit"
+            onclick="event.stopPropagation()"
+            onchange="event.stopPropagation();setProspectFollowUpDate('${p.id}',this.value)">
+          <span style="font-size:11px;color:var(--muted);flex-shrink:0">Datum wählen</span>
         </div>`;
       expandedDiv.appendChild(fuWrap);
     }
@@ -1984,6 +2011,13 @@ function completeMorningRitual(){
   if(!mr.stateRating){alert('Bitte zuerst deinen State bewerten (Schritt 4).');return;}
   saveMorningGratitudes();saveMorningContracts();
   const today=todayStr();
+  // Log morning state to stateLog so gate checks (11/15/18 Uhr) don't fire immediately
+  const sl=getStateLog();
+  const alreadyLoggedToday=sl.some(e=>new Date(e.ts).toISOString().split('T')[0]===today);
+  if(!alreadyLoggedToday){
+    sl.push({ts:Date.now(),rating:mr.stateRating,tags:['Morgenritual'],note:''});
+    save(SK.stateLog,sl);
+  }
   const mStreak=load(SK.morningStreak,{current:0,best:0,lastDate:null});
   if(mStreak.lastDate!==today){
     mStreak.current=mStreak.lastDate===yesterdayStr()?mStreak.current+1:1;

@@ -118,7 +118,7 @@ textarea{resize:vertical;min-height:70px}
 .db-loom{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,.3)}
 
 /* ── PROSPECT ROWS ───────────────────────────────────────────────────────────── */
-.prospect-row{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .15s}
+.prospect-row{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;transition:border-color .15s}
 .pr-main{padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .pr-left{flex:1;min-width:0}
 .pr-name-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:3px}
