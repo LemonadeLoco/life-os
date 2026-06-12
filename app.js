@@ -332,7 +332,8 @@ function submitAddProspect(){
   const fuDate=new Date();fuDate.setDate(fuDate.getDate()+fuDays);
   const prospect={
     id:Date.now().toString(),
-    name,type,stage,notes,
+    name,type,stage,notes:'',
+    notesList:notes?[{text:notes,date:today,ts:Date.now()}]:[],
     loomUrl:'',msgCount:0,links:link&&link.startsWith('http')?[link]:[],
     createdAt:today,
     followUpAt:stage==='dm_sent'?fuDate.toISOString().split('T')[0]:null,
@@ -358,6 +359,7 @@ function moveProspect(id,newStage){
   const idx=prospects.findIndex(p=>p.id===id);
   if(idx<0)return;
   const p=prospects[idx];
+  if(newStage==='followup')p.followupFrom=p.stage;
   p.stage=newStage;
   p.history.push({action:STAGE_LABELS[newStage]||newStage,date:todayStr(),ts:Date.now()});
   const _fuDays=getSettings().defaultFollowUp||3;
@@ -371,7 +373,9 @@ function moveProspect(id,newStage){
   }
   saveProspects(prospects);
   if(newStage==='followup')incrementDailyCounter(p.name);
-  setFilter('all');
+  const _scrollY=window.scrollY;
+  renderPipeline();
+  requestAnimationFrame(()=>window.scrollTo(0,_scrollY));
   renderMission();
   updateWeekStats();
   setTimeout(checkAutoAchievements,50);
@@ -386,6 +390,7 @@ function deleteProspect(id){
 
 function _moveToFollowupStage(p,prospects){
   if(['dm_sent','loom_sent'].includes(p.stage)){
+    p.followupFrom=p.stage;
     p.stage='followup';
     p.history.push({action:STAGE_LABELS['followup'],date:todayStr(),ts:Date.now()});
     saveProspects(prospects);
@@ -484,7 +489,8 @@ function renderPipeline(){
   if(searchVal)filtered=filtered.filter(p=>
     p.name.toLowerCase().includes(searchVal)||
     (p.type||'').toLowerCase().includes(searchVal)||
-    (p.notes||'').toLowerCase().includes(searchVal)
+    (p.notes||'').toLowerCase().includes(searchVal)||
+    (p.notesList||[]).some(n=>(n.text||'').toLowerCase().includes(searchVal))
   );
   filtered.sort((a,b)=>(b.priority?1:0)-(a.priority?1:0));
   const listEl=document.getElementById('prospect-list');
@@ -517,6 +523,7 @@ function renderPipeline(){
         <div class="pr-name-row">
           <span class="pr-name">${esc(p.name)}</span>
           <span class="stage-badge sb-${p.stage}">${STAGE_LABELS[p.stage]||p.stage}</span>
+          ${p.stage==='followup'&&p.followupFrom?`<span style="font-size:9px;color:var(--muted);background:var(--surface2);padding:1px 7px;border-radius:99px;flex-shrink:0;border:1px solid var(--border)">← ${esc(STAGE_LABELS[p.followupFrom]||p.followupFrom)}</span>`:''}
           ${p.stage==='call_booked'&&p.callDate?`<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);padding:2px 7px;border-radius:5px;flex-shrink:0">📞 ${fmtDate(p.callDate)}</span>`:''}
           ${due?'<span class="due-badge db-followup">Follow-up fällig</span>':''}
           ${loomDue?'<span class="due-badge db-loom">Loom ausstehend</span>':''}
@@ -533,12 +540,42 @@ function renderPipeline(){
     row.appendChild(mainDiv);
     const expandedDiv=document.createElement('div');
     expandedDiv.className='pr-expanded'+(isExpanded?' open':'');
-    if(p.notes){
-      const notesDiv=document.createElement('div');
-      notesDiv.className='pr-notes';
-      notesDiv.textContent=p.notes;
-      expandedDiv.appendChild(notesDiv);
+    // Notes log section
+    const notesSection=document.createElement('div');
+    notesSection.style.cssText='margin-bottom:12px';
+    const notesLbl=document.createElement('div');
+    notesLbl.style.cssText='font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px';
+    notesLbl.textContent='Notizen';
+    notesSection.appendChild(notesLbl);
+    const existingNotes=p.notesList||(p.notes?[{text:p.notes,date:p.createdAt||todayStr(),ts:p.history&&p.history[0]?p.history[0].ts:0}]:[]);
+    if(existingNotes.length){
+      existingNotes.forEach(note=>{
+        const noteEl=document.createElement('div');
+        noteEl.style.cssText='font-size:12px;color:var(--secondary);padding:6px 10px;background:var(--surface2);border-radius:8px;margin-bottom:4px;line-height:1.5';
+        noteEl.innerHTML=`<span style="font-size:10px;color:var(--muted);display:block;margin-bottom:2px">${fmtDate(note.date||todayStr())}</span>${esc(note.text||'')}`;
+        notesSection.appendChild(noteEl);
+      });
     }
+    const noteTa=document.createElement('textarea');
+    noteTa.id='note-input-'+p.id;
+    noteTa.placeholder='Notiz hinzufügen…';
+    noteTa.style.cssText='width:100%;box-sizing:border-box;min-height:60px;font-size:12px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;font-family:inherit;resize:vertical;display:none;margin-bottom:6px';
+    noteTa.onclick=e=>e.stopPropagation();
+    const noteBtnRow=document.createElement('div');
+    noteBtnRow.style.cssText='display:flex;gap:6px;margin-top:4px';
+    const addNoteBtn=document.createElement('button');
+    addNoteBtn.className='btn btn-ghost btn-xs';addNoteBtn.textContent='+ Notiz';
+    const saveNoteBtn=document.createElement('button');
+    saveNoteBtn.className='btn btn-ghost btn-xs';saveNoteBtn.textContent='Speichern';saveNoteBtn.style.color='var(--green)';
+    saveNoteBtn.onclick=function(e){e.stopPropagation();saveProspectNote(p.id);};
+    const cancelNoteBtn=document.createElement('button');
+    cancelNoteBtn.className='btn btn-ghost btn-xs';cancelNoteBtn.textContent='Abbrechen';
+    cancelNoteBtn.onclick=function(e){e.stopPropagation();noteTa.style.display='none';noteTa.value='';saveNoteBtn.remove();cancelNoteBtn.remove();addNoteBtn.style.display='';};
+    addNoteBtn.onclick=function(e){e.stopPropagation();noteTa.style.display='block';noteTa.focus();addNoteBtn.style.display='none';noteBtnRow.appendChild(saveNoteBtn);noteBtnRow.appendChild(cancelNoteBtn);};
+    noteBtnRow.appendChild(addNoteBtn);
+    notesSection.appendChild(noteTa);
+    notesSection.appendChild(noteBtnRow);
+    expandedDiv.appendChild(notesSection);
     const histWrap=document.createElement('div');
     histWrap.className='pr-hist-wrap';
     histWrap.innerHTML='<div class="pr-hist-lbl">Verlauf</div>';
@@ -690,6 +727,23 @@ function renderPipeline(){
 function toggleExpand(id){
   expandedId=expandedId===id?null:id;
   renderPipeline();
+}
+
+function saveProspectNote(id){
+  const ta=document.getElementById('note-input-'+id);if(!ta)return;
+  const text=ta.value.trim();if(!text)return;
+  const prospects=getProspects();
+  const p=prospects.find(x=>x.id===id);if(!p)return;
+  if(!p.notesList){
+    p.notesList=p.notes?[{text:p.notes,date:p.createdAt||todayStr(),ts:p.history&&p.history[0]?p.history[0].ts:0}]:[];
+    p.notes='';
+  }
+  p.notesList.unshift({text,date:todayStr(),ts:Date.now()});
+  saveProspects(prospects);
+  const scrollY=window.scrollY;
+  expandedId=id;
+  renderPipeline();
+  requestAnimationFrame(()=>window.scrollTo(0,scrollY));
 }
 
 function toggleAddForm(){
@@ -2197,34 +2251,51 @@ function importData(input){
 }
 
 // ── FUNNEL ────────────────────────────────────────────────────────────────────
-function renderFunnel(){
+let _funnelPeriod='all';
+function renderFunnel(period){
+  if(period)_funnelPeriod=period;
   const el=document.getElementById('funnel-wrap');if(!el)return;
-  const prospects=getProspects(),days=getDays();
-  const totalDMs=Object.values(days).reduce((sum,arr)=>sum+(arr||[]).length,0);
-  const reachedLoom=prospects.filter(p=>['loom','loom_sent','call_booked','won'].includes(p.stage)).length;
-  const reachedCall=prospects.filter(p=>['call_booked','won'].includes(p.stage)).length;
-  const won=prospects.filter(p=>p.stage==='won').length;
-  const rows=[
-    {label:'DMs gesendet',count:totalDMs,base:null,color:'var(--accent)'},
-    {label:'In Pipeline',count:prospects.filter(p=>!['won','lost'].includes(p.stage)).length,base:totalDMs,color:'var(--amber)'},
-    {label:'Loom-Phase+',count:reachedLoom,base:totalDMs,color:'var(--purple)'},
-    {label:'Call gebucht+',count:reachedCall,base:totalDMs,color:'var(--green)'},
-    {label:'Gewonnen',count:won,base:totalDMs,color:'var(--won)'}
+  const allProspects=getProspects();
+  const daysData=getDays();
+  const cutoffDate=_funnelPeriod==='all'?null:(()=>{const d=new Date();d.setDate(d.getDate()-(_funnelPeriod==='7d'?7:30));return d.toISOString().split('T')[0];})();
+  const dmCount=Object.entries(daysData).filter(([d])=>!cutoffDate||d>=cutoffDate).reduce((sum,[,arr])=>sum+(arr||[]).length,0);
+  const prospects=cutoffDate?allProspects.filter(p=>p.createdAt&&p.createdAt>=cutoffDate):allProspects;
+  const total=prospects.length;
+  if(!total&&dmCount===0){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">Noch keine Daten. Starte deinen Outreach.</div>';return;}
+  const everReached=(action)=>prospects.filter(p=>p.history&&p.history.some(h=>h.action===action)).length;
+  const evFollowup=everReached('Follow-up');
+  const evLoom=prospects.filter(p=>p.history&&p.history.some(h=>['Loom','Loom Gesendet'].includes(h.action))).length;
+  const evCall=everReached('Call Gebucht');
+  const evWon=everReached('Gewonnen');
+  const evUnqualified=everReached('Nicht qualifiziert');
+  const funnelRows=[
+    {label:'Prospects in Pipeline',count:total,prev:total,color:'var(--accent)'},
+    {label:'Antwort / Follow-up',count:evFollowup,prev:total,color:'var(--amber)'},
+    {label:'Loom gesendet',count:evLoom,prev:evFollowup,color:'var(--purple)'},
+    {label:'Call gebucht',count:evCall,prev:evLoom,color:'var(--green)'},
+    {label:'Gewonnen',count:evWon,prev:evCall,color:'var(--won)'},
   ];
-  if(totalDMs===0&&prospects.length===0){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">Noch keine Daten. Starte deinen Outreach.</div>';return;}
-  el.innerHTML=rows.map(r=>{
-    const pct=r.base>0?Math.round((r.count/r.base)*100):0;
-    const barW=r.base>0?Math.max(r.count>0?3:0,pct):100;
-    return `<div style="margin-bottom:10px">
+  const periodBtns=['7d','30d','all'].map(p=>`<button class="btn btn-ghost btn-xs${_funnelPeriod===p?' active':''}" style="flex-shrink:0" onclick="renderFunnel('${p}')">${p==='7d'?'7 Tage':p==='30d'?'30 Tage':'Gesamt'}</button>`).join('');
+  const rowsHtml=funnelRows.map((r,i)=>{
+    const convPct=r.prev>0?Math.round((r.count/r.prev)*100):0;
+    const barW=r.prev>0?Math.max(r.count>0?3:0,convPct):100;
+    const dropCount=r.prev-r.count;
+    const dropHtml=i>0&&dropCount>0?`<div style="font-size:10px;color:var(--red);margin-bottom:3px;padding-left:2px">↓ ${dropCount} abgesprungen (${100-convPct}%)</div>`:
+      i>0&&r.prev>0?`<div style="font-size:10px;color:var(--green);margin-bottom:3px;padding-left:2px">✓ Alle weitergeführt</div>`:'';
+    return`<div style="margin-bottom:12px">
+      ${dropHtml}
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
         <span style="font-size:13px;font-weight:500;color:var(--text)">${r.label}</span>
-        <span style="font-size:12px;color:var(--muted)">${r.count}${r.base!==null?' ('+pct+'%)':''}</span>
+        <span style="font-size:12px;color:${i===0?'var(--muted)':r.count>0?r.color:'var(--red)'}">${r.count}${i>0?' ('+convPct+'%)':''}</span>
       </div>
       <div style="height:5px;background:var(--surface2);border-radius:99px;overflow:hidden">
         <div style="height:100%;border-radius:99px;background:${r.color};width:${barW}%;transition:width .4s"></div>
       </div>
     </div>`;
   }).join('');
+  const dmHtml=dmCount>0?`<div style="font-size:11px;color:var(--muted);margin-bottom:12px;padding:6px 10px;background:var(--surface2);border-radius:8px">${dmCount} DMs gesendet → ${total} in Pipeline (${dmCount>0?Math.round((total/dmCount)*100):0}% Eintrittrate)</div>`:'';
+  const unqHtml=evUnqualified>0?`<div style="font-size:11px;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${evUnqualified} Prospect${evUnqualified>1?'s':''} archiviert (Nicht qualifiziert)</div>`:'';
+  el.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">${periodBtns}<span style="font-size:11px;color:var(--muted);margin-left:4px">${total} Prospects${cutoffDate?' im Zeitraum':''}</span></div>${dmHtml}${rowsHtml}${unqHtml}`;
 }
 
 // ── STATE ANALYTICS ───────────────────────────────────────────────────────────
@@ -2713,6 +2784,7 @@ function skipStatePopup(){
   showXPToast('-'+penalty+' XP','⚠️','State übersprungen — Kosten der Vermeidung');
   renderXPBar();
 }
+function _isPopupActive(){return document.getElementById('state-popup')?.classList.contains('active')||false;}
 function checkStatePopup(){
   const mr=getMorningRitual();
   if(mr.date!==todayStr()||!mr.stateRating)return;
@@ -2723,7 +2795,7 @@ function checkStatePopup(){
     const diffHours=(Date.now()-new Date(lastStr).getTime())/3600000;
     if(diffHours<s.stateReminderHours)return;
   }
-  document.getElementById('state-popup')?.classList.add('active');
+  if(!_isPopupActive())document.getElementById('state-popup')?.classList.add('active');
 }
 function checkSpecificTimeAlarms(){
   const mr=getMorningRitual();
@@ -2749,7 +2821,7 @@ function checkSpecificTimeAlarms(){
   }
   if(triggered){
     save(SK.firedAlarmsToday,fired);
-    document.getElementById('state-popup')?.classList.add('active');
+    if(!_isPopupActive())document.getElementById('state-popup')?.classList.add('active');
     if(Notification.permission==='granted'&&navigator.serviceWorker?.controller){
       navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'State Check-In 📊',body:'Wie ist dein State gerade? Nimm dir 30 Sekunden.'});
     }
@@ -2772,13 +2844,14 @@ function scheduleSpecificTimeNotifications(){
     setTimeout(()=>{
       const mr=getMorningRitual();
       if(mr.date!==todayStr()||!mr.stateRating)return;
+      const f=load(SK.firedAlarmsToday,{date:todayStr(),times:[]});
+      if(f.date!==todayStr()){f.date=todayStr();f.times=[];}
+      if(f.times.includes(t))return;
+      f.times.push(t);save(SK.firedAlarmsToday,f);
       if(Notification.permission==='granted'&&navigator.serviceWorker?.controller){
         navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'State Check-In 📊',body:'Wie ist dein State gerade? 5 Atemzüge zuerst.'});
       }
-      const f=load(SK.firedAlarmsToday,{date:todayStr(),times:[]});
-      if(f.date!==todayStr()){f.date=todayStr();f.times=[];}
-      if(!f.times.includes(t)){f.times.push(t);save(SK.firedAlarmsToday,f);}
-      document.getElementById('state-popup')?.classList.add('active');
+      if(!_isPopupActive())document.getElementById('state-popup')?.classList.add('active');
     },delayMs);
   }
 }
@@ -2804,6 +2877,7 @@ function checkStateGate(){
   }
 }
 function _showStatePopupGated(){
+  if(_isPopupActive())return;
   _stateGated=true;
   const popup=document.getElementById('state-popup');
   if(!popup)return;
