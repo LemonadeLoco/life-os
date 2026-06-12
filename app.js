@@ -2262,40 +2262,43 @@ function renderFunnel(period){
   const prospects=cutoffDate?allProspects.filter(p=>p.createdAt&&p.createdAt>=cutoffDate):allProspects;
   const total=prospects.length;
   if(!total&&dmCount===0){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">Noch keine Daten. Starte deinen Outreach.</div>';return;}
-  const everReached=(action)=>prospects.filter(p=>p.history&&p.history.some(h=>h.action===action)).length;
-  const evFollowup=everReached('Follow-up');
-  const evLoom=prospects.filter(p=>p.history&&p.history.some(h=>['Loom','Loom Gesendet'].includes(h.action))).length;
-  const evCall=everReached('Call Gebucht');
-  const evWon=everReached('Gewonnen');
-  const evUnqualified=everReached('Nicht qualifiziert');
-  const funnelRows=[
-    {label:'Prospects in Pipeline',count:total,prev:total,color:'var(--accent)'},
-    {label:'Antwort / Follow-up',count:evFollowup,prev:total,color:'var(--amber)'},
-    {label:'Loom gesendet',count:evLoom,prev:evFollowup,color:'var(--purple)'},
-    {label:'Call gebucht',count:evCall,prev:evLoom,color:'var(--green)'},
-    {label:'Gewonnen',count:evWon,prev:evCall,color:'var(--won)'},
+
+  // "Ever at least reached stage X" — includes anyone who reached X or any later stage.
+  // This guarantees monotonic decrease (no values > 100%) regardless of how users skip stages.
+  const everAtLeast=(actions)=>prospects.filter(p=>p.history&&p.history.some(h=>actions.includes(h.action))).length;
+  const evReply   =everAtLeast(['Follow-up','Loom','Loom Gesendet','Call Gebucht','Gewonnen']);
+  const evLoomSent=everAtLeast(['Loom Gesendet','Call Gebucht','Gewonnen']);
+  const evCall    =everAtLeast(['Call Gebucht','Gewonnen']);
+  const evWon     =everAtLeast(['Gewonnen']);
+  const evUnq     =everAtLeast(['Nicht qualifiziert']);
+
+  const base=Math.max(dmCount,total,1);
+  const steps=[
+    {label:'DMs gesendet',   count:dmCount,   color:'var(--accent)'},
+    {label:'Antwort erhalten',count:evReply,   color:'var(--amber)'},
+    {label:'Loom gesendet',  count:evLoomSent, color:'var(--purple)'},
+    {label:'Call gebucht',   count:evCall,     color:'var(--green)'},
+    {label:'Gewonnen',       count:evWon,      color:'var(--won)'},
   ];
+
   const periodBtns=['7d','30d','all'].map(p=>`<button class="btn btn-ghost btn-xs${_funnelPeriod===p?' active':''}" style="flex-shrink:0" onclick="renderFunnel('${p}')">${p==='7d'?'7 Tage':p==='30d'?'30 Tage':'Gesamt'}</button>`).join('');
-  const rowsHtml=funnelRows.map((r,i)=>{
-    const convPct=r.prev>0?Math.round((r.count/r.prev)*100):0;
-    const barW=r.prev>0?Math.max(r.count>0?3:0,convPct):100;
-    const dropCount=r.prev-r.count;
-    const dropHtml=i>0&&dropCount>0?`<div style="font-size:10px;color:var(--red);margin-bottom:3px;padding-left:2px">↓ ${dropCount} abgesprungen (${100-convPct}%)</div>`:
-      i>0&&r.prev>0?`<div style="font-size:10px;color:var(--green);margin-bottom:3px;padding-left:2px">✓ Alle weitergeführt</div>`:'';
-    return`<div style="margin-bottom:12px">
-      ${dropHtml}
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-        <span style="font-size:13px;font-weight:500;color:var(--text)">${r.label}</span>
-        <span style="font-size:12px;color:${i===0?'var(--muted)':r.count>0?r.color:'var(--red)'}">${r.count}${i>0?' ('+convPct+'%)':''}</span>
-      </div>
-      <div style="height:5px;background:var(--surface2);border-radius:99px;overflow:hidden">
-        <div style="height:100%;border-radius:99px;background:${r.color};width:${barW}%;transition:width .4s"></div>
-      </div>
-    </div>`;
+
+  const rowsHtml=steps.map((r,i)=>{
+    const pct=Math.round((r.count/base)*100);
+    const barW=Math.max(r.count>0?1:0,pct);
+    const prevCount=i>0?steps[i-1].count:base;
+    const drop=prevCount-r.count;
+    const dropPct=prevCount>0?Math.round((drop/prevCount)*100):0;
+    const connector=i>0?(drop>0
+      ?`<div style="display:flex;align-items:center;gap:8px;padding:5px 0 5px 8px"><div style="width:1px;height:16px;background:var(--border);flex-shrink:0"></div><span style="font-size:10px;color:var(--red)">−${drop} abgesprungen · ${dropPct}% Drop-off</span></div>`
+      :`<div style="padding:5px 0 5px 8px;font-size:10px;color:var(--green)">✓ Keine Verluste</div>`)
+      :'';
+    return`<div>${connector}<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:13px;font-weight:600;color:var(--text)">${r.label}</span><span style="font-size:14px;font-weight:700;color:${r.count>0?r.color:'var(--muted)'}">${r.count}<span style="font-size:10px;font-weight:400;color:var(--muted);margin-left:4px">${i>0?'('+pct+'%)':''}</span></span></div><div style="height:7px;background:var(--surface2);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:${r.color};width:${barW}%;transition:width .5s"></div></div></div>`;
   }).join('');
-  const dmHtml=dmCount>0?`<div style="font-size:11px;color:var(--muted);margin-bottom:12px;padding:6px 10px;background:var(--surface2);border-radius:8px">${dmCount} DMs gesendet → ${total} in Pipeline (${dmCount>0?Math.round((total/dmCount)*100):0}% Eintrittrate)</div>`:'';
-  const unqHtml=evUnqualified>0?`<div style="font-size:11px;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${evUnqualified} Prospect${evUnqualified>1?'s':''} archiviert (Nicht qualifiziert)</div>`:'';
-  el.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">${periodBtns}<span style="font-size:11px;color:var(--muted);margin-left:4px">${total} Prospects${cutoffDate?' im Zeitraum':''}</span></div>${dmHtml}${rowsHtml}${unqHtml}`;
+
+  const unqNote=evUnq>0?`<div style="font-size:11px;color:var(--muted);margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">${evUnq} archiviert (Nicht qualifiziert) — nicht in den Zahlen oben</div>`:'';
+
+  el.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center">${periodBtns}<span style="font-size:11px;color:var(--muted);margin-left:4px">${total} Prospects${cutoffDate?' im Zeitraum':''}</span></div>${rowsHtml}${unqNote}`;
 }
 
 // ── STATE ANALYTICS ───────────────────────────────────────────────────────────
