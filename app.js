@@ -2266,10 +2266,11 @@ function renderFunnel(period){
   // "Ever at least reached stage X" — includes anyone who reached X or any later stage.
   // This guarantees monotonic decrease (no values > 100%) regardless of how users skip stages.
   const everAtLeast=(actions)=>prospects.filter(p=>p.history&&p.history.some(h=>actions.includes(h.action))).length;
-  const evReply   =everAtLeast(['Follow-up','Loom','Loom Gesendet','Call Gebucht','Gewonnen']);
-  const evLoomSent=everAtLeast(['Loom Gesendet','Call Gebucht','Gewonnen']);
-  const evCall    =everAtLeast(['Call Gebucht','Gewonnen']);
+  const evReply   =everAtLeast(['Follow-up','Loom','Loom Gesendet','Call Gebucht','Gewonnen','Lost']);
+  const evLoomSent=everAtLeast(['Loom Gesendet','Call Gebucht','Gewonnen','Lost']);
+  const evCall    =everAtLeast(['Call Gebucht','Gewonnen','Lost']);
   const evWon     =everAtLeast(['Gewonnen']);
+  const evLost    =everAtLeast(['Lost']);
   const evUnq     =everAtLeast(['Nicht qualifiziert']);
 
   const base=Math.max(dmCount,total,1);
@@ -2296,9 +2297,10 @@ function renderFunnel(period){
     return`<div>${connector}<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:13px;font-weight:600;color:var(--text)">${r.label}</span><span style="font-size:14px;font-weight:700;color:${r.count>0?r.color:'var(--muted)'}">${r.count}<span style="font-size:10px;font-weight:400;color:var(--muted);margin-left:4px">${i>0?'('+pct+'%)':''}</span></span></div><div style="height:7px;background:var(--surface2);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:${r.color};width:${barW}%;transition:width .5s"></div></div></div>`;
   }).join('');
 
-  const unqNote=evUnq>0?`<div style="font-size:11px;color:var(--muted);margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">${evUnq} archiviert (Nicht qualifiziert) — nicht in den Zahlen oben</div>`:'';
+  const wonLostNote=evCall>0?`<div style="font-size:11px;color:var(--muted);margin-top:2px;padding:6px 10px;background:var(--surface2);border-radius:8px;display:flex;gap:12px;flex-wrap:wrap"><span style="color:var(--green)">✓ ${evWon} Gewonnen</span><span style="color:var(--red)">✗ ${evLost} Lost</span>${evCall-evWon-evLost>0?`<span style="color:var(--amber)">◯ ${evCall-evWon-evLost} offen</span>`:''}</div>`:'';
+  const unqNote=evUnq>0?`<div style="font-size:11px;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${evUnq} archiviert (Nicht qualifiziert) — nicht in den Zahlen oben</div>`:'';
 
-  el.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center">${periodBtns}<span style="font-size:11px;color:var(--muted);margin-left:4px">${total} Prospects${cutoffDate?' im Zeitraum':''}</span></div>${rowsHtml}${unqNote}`;
+  el.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center">${periodBtns}<span style="font-size:11px;color:var(--muted);margin-left:4px">${total} Prospects${cutoffDate?' im Zeitraum':''}</span></div>${rowsHtml}${wonLostNote}${unqNote}`;
 }
 
 // ── STATE ANALYTICS ───────────────────────────────────────────────────────────
