@@ -359,9 +359,10 @@ function moveProspect(id,newStage){
   const idx=prospects.findIndex(p=>p.id===id);
   if(idx<0)return;
   const p=prospects[idx];
+  const oldStage=p.stage;
   if(newStage==='followup')p.followupFrom=p.stage;
   p.stage=newStage;
-  p.history.push({action:STAGE_LABELS[newStage]||newStage,date:todayStr(),ts:Date.now()});
+  p.history.push({type:'stage_change',from:oldStage,to:newStage,action:STAGE_LABELS[newStage]||newStage,date:todayStr(),ts:Date.now()});
   const _fuDays=getSettings().defaultFollowUp||3;
   if(newStage==='dm_sent'){
     const d=new Date();d.setDate(d.getDate()+_fuDays);
@@ -390,9 +391,10 @@ function deleteProspect(id){
 
 function _moveToFollowupStage(p,prospects){
   if(['dm_sent','loom_sent'].includes(p.stage)){
+    const oldStage=p.stage;
     p.followupFrom=p.stage;
     p.stage='followup';
-    p.history.push({action:STAGE_LABELS['followup'],date:todayStr(),ts:Date.now()});
+    p.history.push({type:'stage_change',from:oldStage,to:'followup',action:STAGE_LABELS['followup'],date:todayStr(),ts:Date.now()});
     saveProspects(prospects);
   }
   activeFilter='followup';
@@ -461,6 +463,34 @@ function isLoomSentFollowupDue(p){
   return p.stage==='loom_sent'&&p.followUpAt&&todayStr()>=p.followUpAt;
 }
 
+// Derived follow-up state — computed from typed history events + legacy msgCount.
+// Returns: 'REPLY_WAITING' | 'BUMP_DUE' | 'COOLING' | 'CEILING' | null
+function getFollowupState(p){
+  if(['won','lost','unqualified'].includes(p.stage))return null;
+  const OUTBOUND_ACTIONS=new Set(['DM Gesendet','Loom Gesendet']);
+  const history=p.history||[];
+  const outMsgs=history
+    .filter(h=>h.type==='message'?h.direction==='out':OUTBOUND_ACTIONS.has(h.action))
+    .sort((a,b)=>(a.ts||0)-(b.ts||0));
+  const inMsgs=history
+    .filter(h=>h.type==='message'&&h.direction==='in')
+    .sort((a,b)=>(a.ts||0)-(b.ts||0));
+  if(!outMsgs.length)return null;
+  const lastOutTs=outMsgs[outMsgs.length-1].ts||0;
+  const daysSinceLastOut=(Date.now()-lastOutTs)/86400000;
+  // Legacy: msgCount > 0 means a reply exists; notionally place it after the first outbound
+  let lastInTs=0;
+  if(inMsgs.length>0){lastInTs=inMsgs[inMsgs.length-1].ts||0;}
+  else if((p.msgCount||0)>0&&outMsgs.length>0){lastInTs=outMsgs[0].ts||0;}
+  if(lastInTs>lastOutTs)return'REPLY_WAITING';
+  const outSinceReply=outMsgs.filter(h=>(h.ts||0)>lastInTs).length;
+  if(lastInTs>0&&outSinceReply===0)return'REPLY_WAITING';
+  if(outSinceReply>=2)return'CEILING';
+  if(outSinceReply===1&&daysSinceLastOut>=5)return'BUMP_DUE';
+  if(outSinceReply===1&&daysSinceLastOut<5)return'COOLING';
+  return null;
+}
+
 function prospectAge(p){
   if(!p.history||!p.history.length)return null;
   const last=p.history[p.history.length-1];
@@ -474,9 +504,9 @@ function renderPipeline(){
   STAGE_ORDER.forEach(s=>{counts[s]=prospects.filter(p=>p.stage===s).length;});
   ['all',...STAGE_ORDER].forEach(s=>{const el=document.getElementById('ct-'+s);if(el)el.textContent=counts[s]||0;});
   const _fuEl=document.getElementById('ct-followup');
-  if(_fuEl)_fuEl.textContent=prospects.filter(p=>p.stage==='followup'||isFollowupDue(p)||isLoomSentFollowupDue(p)).length;
-  const fuDue=prospects.filter(p=>isFollowupDue(p)).length;
-  const loomSentDue=prospects.filter(p=>isLoomSentFollowupDue(p)).length;
+  if(_fuEl)_fuEl.textContent=prospects.filter(p=>p.stage==='followup'||['BUMP_DUE','REPLY_WAITING'].includes(getFollowupState(p))).length;
+  const fuDue=prospects.filter(p=>['BUMP_DUE','REPLY_WAITING'].includes(getFollowupState(p))).length;
+  const loomSentDue=prospects.filter(p=>p.stage==='loom_sent'&&getFollowupState(p)==='BUMP_DUE').length;
   const loomCount=counts['loom']||0;
   const fuPill=document.querySelector('.sf-pill[data-filter="followup"]');
   const loomPill=document.querySelector('.sf-pill[data-filter="loom"]');
@@ -485,7 +515,7 @@ function renderPipeline(){
   if(loomPill){loomPill.classList.toggle('alert',loomCount>0&&activeFilter!=='loom');}
   if(loomSentPill){loomSentPill.classList.toggle('alert',loomSentDue>0&&activeFilter!=='loom_sent');}
   const searchVal=(document.getElementById('prospect-search')?.value||'').toLowerCase().trim();
-  let filtered=activeFilter==='all'?prospects:activeFilter==='followup'?prospects.filter(p=>p.stage==='followup'||isFollowupDue(p)||isLoomSentFollowupDue(p)):prospects.filter(p=>p.stage===activeFilter);
+  let filtered=activeFilter==='all'?prospects:activeFilter==='followup'?prospects.filter(p=>p.stage==='followup'||['BUMP_DUE','REPLY_WAITING'].includes(getFollowupState(p))):prospects.filter(p=>p.stage===activeFilter);
   if(searchVal)filtered=filtered.filter(p=>
     p.name.toLowerCase().includes(searchVal)||
     (p.type||'').toLowerCase().includes(searchVal)||
@@ -501,9 +531,8 @@ function renderPipeline(){
   listEl.innerHTML='';
   const TYPE_LABELS={coach:'Coach',speaker:'Speaker',consultant:'Consultant',course:'Course Creator'};
   filtered.forEach(p=>{
-    const due=isFollowupDue(p);
+    const followupState=getFollowupState(p);
     const loomDue=p.stage==='loom';
-    const loomSentDueP=isLoomSentFollowupDue(p);
     const isExpanded=expandedId===p.id;
     const typeLbl=TYPE_LABELS[p.type]||'';
     const metaParts=[typeLbl,fmtDate(p.createdAt)].filter(Boolean);
@@ -525,9 +554,10 @@ function renderPipeline(){
           <span class="stage-badge sb-${p.stage}">${STAGE_LABELS[p.stage]||p.stage}</span>
           ${p.stage==='followup'&&p.followupFrom?`<span style="font-size:9px;color:var(--muted);background:var(--surface2);padding:1px 7px;border-radius:99px;flex-shrink:0;border:1px solid var(--border)">← ${esc(STAGE_LABELS[p.followupFrom]||p.followupFrom)}</span>`:''}
           ${p.stage==='call_booked'&&p.callDate?`<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);padding:2px 7px;border-radius:5px;flex-shrink:0">📞 ${fmtDate(p.callDate)}</span>`:''}
-          ${due?'<span class="due-badge db-followup">Follow-up fällig</span>':''}
+          ${followupState==='BUMP_DUE'?'<span class="due-badge db-followup">Bump fällig</span>':''}
+          ${followupState==='CEILING'?'<span class="due-badge db-ceiling">Ceiling — archivieren?</span>':''}
+          ${followupState==='REPLY_WAITING'?'<span class="due-badge db-reply">Antwort erhalten</span>':''}
           ${loomDue?'<span class="due-badge db-loom">Loom ausstehend</span>':''}
-          ${loomSentDueP?'<span class="due-badge db-followup">Follow-up fällig</span>':''}
           ${ageChip}${linkChips}
         </div>
         <div class="pr-meta">${metaParts.join(' · ')}</div>
