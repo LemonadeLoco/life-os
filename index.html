@@ -251,7 +251,7 @@
       <div class="stage-filter" id="stage-filter">
         <button class="sf-pill active" data-filter="all" onclick="setFilter('all')">Alle <span class="sf-count" id="ct-all">0</span></button>
         <button class="sf-pill" data-filter="dm_sent" onclick="setFilter('dm_sent')">DM <span class="sf-count" id="ct-dm_sent">0</span></button>
-        <button class="sf-pill" data-filter="followup" onclick="setFilter('followup')">Follow-up <span class="sf-count" id="ct-followup">0</span></button>
+        <button class="sf-pill" data-filter="aktion" onclick="setFilter('aktion')">Aktion <span class="sf-count" id="ct-aktion">0</span></button>
         <button class="sf-pill" data-filter="loom" onclick="setFilter('loom')">Loom <span class="sf-count" id="ct-loom">0</span></button>
         <button class="sf-pill" data-filter="loom_sent" onclick="setFilter('loom_sent')">Loom ✓ <span class="sf-count" id="ct-loom_sent">0</span></button>
         <button class="sf-pill" data-filter="call_booked" onclick="setFilter('call_booked')">Call <span class="sf-count" id="ct-call_booked">0</span></button>
@@ -277,7 +277,6 @@
         <div class="fg"><label>Phase</label>
           <select id="ap-stage">
             <option value="dm_sent">DM Gesendet</option>
-            <option value="followup">Follow-up</option>
             <option value="loom">Loom</option>
             <option value="call_booked">Call Gebucht</option>
           </select>

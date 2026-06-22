@@ -318,7 +318,21 @@ function getProspects(){return load(SK.prospects,[]);}
 function saveProspects(p){save(SK.prospects,p);}
 
 const STAGE_LABELS={dm_sent:'DM Gesendet',followup:'Follow-up',loom:'Loom',loom_sent:'Loom Gesendet',call_booked:'Call Gebucht',won:'Gewonnen',lost:'Lost',unqualified:'Nicht qualifiziert'};
-const STAGE_ORDER=['dm_sent','followup','loom','loom_sent','call_booked','won','lost','unqualified'];
+const STAGE_ORDER=['dm_sent','loom','loom_sent','call_booked','won','lost','unqualified'];
+
+// ── ACTION STATE (derived from prospect_followup_state view) ───────────────────
+const ACTION_STATES_DUE=new Set(['ANTWORT_FÄLLIG','BUMP_FÄLLIG','LOOM_NUDGE_FÄLLIG','THREAD_PRÜFEN','ARCHIVIEREN']);
+const ACTION_CHIP={
+  ANTWORT_FÄLLIG:  {label:'Antwort fällig',  color:'#2dd4bf'},
+  BUMP_FÄLLIG:     {label:'Bump fällig',      color:'var(--amber)'},
+  LOOM_NUDGE_FÄLLIG:{label:'Loom-Nudge',      color:'var(--accent)'},
+  THREAD_PRÜFEN:   {label:'Thread prüfen',    color:'#a78bfa'},
+  ARCHIVIEREN:     {label:'Archivieren?',     color:'var(--red)'},
+};
+const ACTION_PRIORITY={ANTWORT_FÄLLIG:1,THREAD_PRÜFEN:2,LOOM_NUDGE_FÄLLIG:3,BUMP_FÄLLIG:4,ARCHIVIEREN:5};
+let _fpcmActionCache={};
+function getActionState(p){return(_fpcmActionCache[p.id]||{}).action_state||null;}
+function getMsgCount(p){return(_fpcmActionCache[p.id]||{}).real_msg_count||0;}
 
 function submitAddProspect(){
   const name=document.getElementById('ap-name').value.trim();
@@ -463,32 +477,26 @@ function isLoomSentFollowupDue(p){
   return p.stage==='loom_sent'&&p.followUpAt&&todayStr()>=p.followUpAt;
 }
 
-// Derived follow-up state — computed from typed history events + legacy msgCount.
-// Returns: 'REPLY_WAITING' | 'BUMP_DUE' | 'COOLING' | 'CEILING' | null
+// Derived follow-up state — now sourced from Supabase prospect_followup_state view via _fpcmActionCache.
+// Returns the action_state string when an action is due, null otherwise.
 function getFollowupState(p){
-  if(['won','lost','unqualified'].includes(p.stage))return null;
-  const OUTBOUND_ACTIONS=new Set(['DM Gesendet','Loom Gesendet']);
-  const history=p.history||[];
-  const outMsgs=history
-    .filter(h=>h.type==='message'?h.direction==='out':OUTBOUND_ACTIONS.has(h.action))
-    .sort((a,b)=>(a.ts||0)-(b.ts||0));
-  const inMsgs=history
-    .filter(h=>h.type==='message'&&h.direction==='in')
-    .sort((a,b)=>(a.ts||0)-(b.ts||0));
-  if(!outMsgs.length)return null;
-  const lastOutTs=outMsgs[outMsgs.length-1].ts||0;
-  const daysSinceLastOut=(Date.now()-lastOutTs)/86400000;
-  // Legacy: msgCount > 0 means a reply exists; notionally place it after the first outbound
-  let lastInTs=0;
-  if(inMsgs.length>0){lastInTs=inMsgs[inMsgs.length-1].ts||0;}
-  else if((p.msgCount||0)>0&&outMsgs.length>0){lastInTs=outMsgs[0].ts||0;}
-  if(lastInTs>lastOutTs)return'REPLY_WAITING';
-  const outSinceReply=outMsgs.filter(h=>(h.ts||0)>lastInTs).length;
-  if(lastInTs>0&&outSinceReply===0)return'REPLY_WAITING';
-  if(outSinceReply>=2)return'CEILING';
-  if(outSinceReply===1&&daysSinceLastOut>=5)return'BUMP_DUE';
-  if(outSinceReply===1&&daysSinceLastOut<5)return'COOLING';
-  return null;
+  const s=getActionState(p);
+  return s&&ACTION_STATES_DUE.has(s)?s:null;
+}
+
+// One-time migration: remap any remaining followup-stage prospects in localStorage to their real stage.
+function migrateFollowupStages(){
+  const prospects=getProspects();
+  const followupOnes=prospects.filter(p=>p.stage==='followup');
+  if(!followupOnes.length)return;
+  followupOnes.forEach(p=>{
+    const hasLoom=(p.history||[]).some(h=>
+      h.action==='Loom Gesendet'||(h.type==='message'&&h.kind==='loom_link')
+    );
+    p.stage=hasLoom?'loom_sent':'dm_sent';
+    delete p.followupFrom;
+  });
+  saveProspects(prospects);
 }
 
 function prospectAge(p){
@@ -503,19 +511,29 @@ function renderPipeline(){
   const counts={all:prospects.length};
   STAGE_ORDER.forEach(s=>{counts[s]=prospects.filter(p=>p.stage===s).length;});
   ['all',...STAGE_ORDER].forEach(s=>{const el=document.getElementById('ct-'+s);if(el)el.textContent=counts[s]||0;});
-  const _fuEl=document.getElementById('ct-followup');
-  if(_fuEl)_fuEl.textContent=prospects.filter(p=>p.stage==='followup'||['BUMP_DUE','REPLY_WAITING'].includes(getFollowupState(p))).length;
-  const fuDue=prospects.filter(p=>['BUMP_DUE','REPLY_WAITING'].includes(getFollowupState(p))).length;
-  const loomSentDue=prospects.filter(p=>p.stage==='loom_sent'&&getFollowupState(p)==='BUMP_DUE').length;
+  const aktionCount=prospects.filter(p=>ACTION_STATES_DUE.has(getActionState(p))).length;
+  const aktionEl=document.getElementById('ct-aktion');
+  if(aktionEl)aktionEl.textContent=aktionCount;
   const loomCount=counts['loom']||0;
-  const fuPill=document.querySelector('.sf-pill[data-filter="followup"]');
+  const loomSentDue=prospects.filter(p=>p.stage==='loom_sent'&&getActionState(p)==='LOOM_NUDGE_FÄLLIG').length;
+  const aktionPill=document.querySelector('.sf-pill[data-filter="aktion"]');
   const loomPill=document.querySelector('.sf-pill[data-filter="loom"]');
   const loomSentPill=document.querySelector('.sf-pill[data-filter="loom_sent"]');
-  if(fuPill){fuPill.classList.toggle('alert',fuDue>0&&activeFilter!=='followup');}
+  if(aktionPill){aktionPill.classList.toggle('alert',aktionCount>0&&activeFilter!=='aktion');}
   if(loomPill){loomPill.classList.toggle('alert',loomCount>0&&activeFilter!=='loom');}
   if(loomSentPill){loomSentPill.classList.toggle('alert',loomSentDue>0&&activeFilter!=='loom_sent');}
   const searchVal=(document.getElementById('prospect-search')?.value||'').toLowerCase().trim();
-  let filtered=activeFilter==='all'?prospects:activeFilter==='followup'?prospects.filter(p=>p.stage==='followup'||['BUMP_DUE','REPLY_WAITING'].includes(getFollowupState(p))):prospects.filter(p=>p.stage===activeFilter);
+  let filtered=activeFilter==='all'
+    ?prospects
+    :activeFilter==='aktion'
+      ?prospects.filter(p=>ACTION_STATES_DUE.has(getActionState(p))).sort((a,b)=>{
+          const pa=ACTION_PRIORITY[getActionState(a)]||99,pb=ACTION_PRIORITY[getActionState(b)]||99;
+          if(pa!==pb)return pa-pb;
+          const da=parseFloat((_fpcmActionCache[a.id]||{}).days_since_last_outbound||0);
+          const db=parseFloat((_fpcmActionCache[b.id]||{}).days_since_last_outbound||0);
+          return db-da;
+        })
+      :prospects.filter(p=>p.stage===activeFilter);
   if(searchVal)filtered=filtered.filter(p=>
     p.name.toLowerCase().includes(searchVal)||
     (p.type||'').toLowerCase().includes(searchVal)||
@@ -531,7 +549,7 @@ function renderPipeline(){
   listEl.innerHTML='';
   const TYPE_LABELS={coach:'Coach',speaker:'Speaker',consultant:'Consultant',course:'Course Creator'};
   filtered.forEach(p=>{
-    const followupState=getFollowupState(p);
+    const actionState=getActionState(p);
     const loomDue=p.stage==='loom';
     const isExpanded=expandedId===p.id;
     const typeLbl=TYPE_LABELS[p.type]||'';
@@ -547,24 +565,26 @@ function renderPipeline(){
     const mainDiv=document.createElement('div');
     mainDiv.className='pr-main';
     mainDiv.onclick=()=>toggleExpand(p.id);
+    const _ac=ACTION_CHIP[actionState];
+    const actionChip=_ac
+      ?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:${_ac.color}22;color:${_ac.color};border:1px solid ${_ac.color}44;flex-shrink:0;white-space:nowrap">${_ac.label}</span>`
+      :'';
+    const realMsgCount=getMsgCount(p);
+    const threadChip=`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--surface2);color:${realMsgCount>0?'var(--text)':'var(--muted)'};border:1px solid var(--border);flex-shrink:0;cursor:pointer" onclick="event.stopPropagation();toggleExpand('${p.id}')">💬${realMsgCount>0?' '+realMsgCount:''}</span>`;
     mainDiv.innerHTML=`
       <div class="pr-left">
         <div class="pr-name-row">
           <span class="pr-name">${esc(p.name)}</span>
-          <span class="stage-badge sb-${p.stage}">${STAGE_LABELS[p.stage]||p.stage}</span>
-          ${p.stage==='followup'&&p.followupFrom?`<span style="font-size:9px;color:var(--muted);background:var(--surface2);padding:1px 7px;border-radius:99px;flex-shrink:0;border:1px solid var(--border)">← ${esc(STAGE_LABELS[p.followupFrom]||p.followupFrom)}</span>`:''}
+          <span style="font-size:9px;padding:2px 7px;border-radius:99px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);flex-shrink:0;white-space:nowrap">${STAGE_LABELS[p.stage]||p.stage}</span>
+          ${actionChip}
           ${p.stage==='call_booked'&&p.callDate?`<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);padding:2px 7px;border-radius:5px;flex-shrink:0">📞 ${fmtDate(p.callDate)}</span>`:''}
-          ${followupState==='BUMP_DUE'?'<span class="due-badge db-followup">Bump fällig</span>':''}
-          ${followupState==='CEILING'?'<span class="due-badge db-ceiling">Ceiling — archivieren?</span>':''}
-          ${followupState==='REPLY_WAITING'?'<span class="due-badge db-reply">Antwort erhalten</span>':''}
           ${loomDue?'<span class="due-badge db-loom">Loom ausstehend</span>':''}
-          ${ageChip}${linkChips}
+          ${threadChip}${linkChips}${ageChip}
         </div>
         <div class="pr-meta">${metaParts.join(' · ')}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <button class="priority-star-btn${p.priority?' active':''}" onclick="event.stopPropagation();togglePriority('${p.id}')" title="Priorität">★</button>
-        ${!['lost'].includes(p.stage)?`<button class="msg-btn${msgCount>0?' has-msgs':''}" onclick="event.stopPropagation();incrementMsgCount('${p.id}')">💬${msgCount>0?' '+msgCount:''}</button>`:''}
         <span class="pr-chevron">${isExpanded?'▲':'▼'}</span>
       </div>`;
     row.appendChild(mainDiv);
@@ -617,6 +637,19 @@ function renderPipeline(){
       histWrap.appendChild(item);
     });
     expandedDiv.appendChild(histWrap);
+    // Chat thread viewer
+    const threadWrap=document.createElement('div');
+    threadWrap.style.cssText='margin-bottom:12px;margin-top:4px';
+    const threadLbl=document.createElement('div');
+    threadLbl.style.cssText='font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px';
+    threadLbl.textContent='Chat-Thread';
+    const threadMsgs=document.createElement('div');
+    threadMsgs.id='thread-msgs-'+p.id;
+    threadMsgs.innerHTML='<div style="font-size:12px;color:var(--muted);padding:4px 0">Lädt…</div>';
+    threadWrap.appendChild(threadLbl);
+    threadWrap.appendChild(threadMsgs);
+    expandedDiv.appendChild(threadWrap);
+    if(isExpanded)loadProspectThread(p.id,threadMsgs);
     // Social links section
     const socWrap=document.createElement('div');
     socWrap.style.cssText='margin-bottom:10px;margin-top:10px';
@@ -723,6 +756,44 @@ function renderPipeline(){
           <span style="font-size:11px;color:var(--muted);flex-shrink:0">Datum wählen</span>
         </div>`;
       expandedDiv.appendChild(fuWrap);
+    }
+    // Action log buttons (Bump / Loom-Nudge / Als Antwort markieren)
+    if(!['won','lost','unqualified','archived','call_booked'].includes(p.stage)){
+      const actWrap=document.createElement('div');
+      actWrap.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px';
+      const _as=getActionState(p);
+      if(_as==='BUMP_FÄLLIG'||_as==='ARCHIVIEREN'){
+        const bumpBtn=document.createElement('button');
+        bumpBtn.className='btn btn-ghost btn-xs';bumpBtn.style.color='var(--amber)';
+        bumpBtn.textContent='↑ Bump gesendet';
+        bumpBtn.onclick=function(e){e.stopPropagation();bumpBtn.disabled=true;bumpBtn.textContent='…';
+          insertProspectMessage(p.id,'out','followup',null,null).then(ok=>{
+            if(!ok){bumpBtn.disabled=false;bumpBtn.textContent='↑ Bump gesendet';showXPToast('Fehler','⚠️','Supabase nicht erreichbar');}
+          });};
+        actWrap.appendChild(bumpBtn);
+      }
+      if(_as==='LOOM_NUDGE_FÄLLIG'){
+        const nudgeBtn=document.createElement('button');
+        nudgeBtn.className='btn btn-ghost btn-xs';nudgeBtn.style.color='var(--accent)';
+        nudgeBtn.textContent='↑ Loom-Nudge gesendet';
+        nudgeBtn.onclick=function(e){e.stopPropagation();nudgeBtn.disabled=true;nudgeBtn.textContent='…';
+          insertProspectMessage(p.id,'out','followup',null,null).then(ok=>{
+            if(!ok){nudgeBtn.disabled=false;nudgeBtn.textContent='↑ Loom-Nudge gesendet';showXPToast('Fehler','⚠️','Supabase nicht erreichbar');}
+          });};
+        actWrap.appendChild(nudgeBtn);
+      }
+      const replyBtn=document.createElement('button');
+      replyBtn.className='btn btn-ghost btn-xs';replyBtn.style.color='#2dd4bf';
+      replyBtn.textContent='↓ Als Antwort markieren';
+      replyBtn.onclick=function(e){e.stopPropagation();
+        const text=prompt('Antwort-Text (optional):');
+        if(text===null)return;
+        replyBtn.disabled=true;replyBtn.textContent='…';
+        insertProspectMessage(p.id,'in','reply',text||null,null).then(ok=>{
+          if(!ok){replyBtn.disabled=false;replyBtn.textContent='↓ Als Antwort markieren';showXPToast('Fehler','⚠️','Supabase nicht erreichbar');}
+        });};
+      actWrap.appendChild(replyBtn);
+      if(actWrap.children.length)expandedDiv.appendChild(actWrap);
     }
     const moveRow=document.createElement('div');
     moveRow.className='pr-move-row';
@@ -3047,8 +3118,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   idbInit();
   startStatePopupTimer();
   updateNavDots();
+  migrateFollowupStages();
   syncFromSupabase().catch(()=>{});
   _updateSyncStatus();
+  _loadActionStateCache().catch(()=>{});
   renderDailyWisdom();renderOutreachStateBanner();renderCriticalPriority();
   scheduleStateNotification();
   checkStateGate();
@@ -3241,4 +3314,77 @@ function _scheduleSyncToSupabase(){
   if(!s.enabled||!s.url||!s.key)return;
   clearTimeout(_syncTimer);
   _syncTimer=setTimeout(syncToSupabase,5000);
+}
+
+// ── PROSPECT MESSAGES (Supabase) ──────────────────────────────────────────────
+async function _loadActionStateCache(){
+  const s=getSupabaseSettings();
+  if(!s.enabled||!s.url||!s.key)return;
+  try{
+    const res=await fetch(`${s.url}/rest/v1/prospect_followup_state?select=prospect_id,action_state,real_msg_count,days_since_last_outbound,has_unknown_history`,{
+      headers:{apikey:s.key,Authorization:`Bearer ${s.key}`}
+    });
+    if(!res.ok)return;
+    const rows=await res.json();
+    _fpcmActionCache={};
+    rows.forEach(r=>{_fpcmActionCache[r.prospect_id]=r;});
+    renderPipeline();
+  }catch(e){}
+}
+
+async function insertProspectMessage(prospectId,direction,kind,text,loomUrl){
+  const s=getSupabaseSettings();
+  if(!s.url||!s.key)return false;
+  try{
+    const res=await fetch(`${s.url}/rest/v1/prospect_messages`,{
+      method:'POST',
+      headers:{
+        apikey:s.key,
+        Authorization:`Bearer ${s.key}`,
+        'Content-Type':'application/json',
+        Prefer:'return=minimal'
+      },
+      body:JSON.stringify({
+        prospect_id:prospectId,
+        ts:new Date().toISOString(),
+        direction,
+        kind,
+        text:text||null,
+        loom_url:loomUrl||null,
+        is_placeholder:false
+      })
+    });
+    if(!res.ok)return false;
+    await _loadActionStateCache();
+    return true;
+  }catch(e){return false;}
+}
+
+async function loadProspectThread(prospectId,container){
+  const s=getSupabaseSettings();
+  if(!s.url||!s.key){container.innerHTML='<div style="font-size:12px;color:var(--muted)">Supabase nicht verbunden.</div>';return;}
+  try{
+    const res=await fetch(
+      `${s.url}/rest/v1/prospect_messages?prospect_id=eq.${encodeURIComponent(prospectId)}&select=id,direction,kind,text,loom_url,ts,is_placeholder&order=ts.asc`,
+      {headers:{apikey:s.key,Authorization:`Bearer ${s.key}`}}
+    );
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const msgs=await res.json();
+    if(!msgs.length){container.innerHTML='<div style="font-size:12px;color:var(--muted);padding:4px 0">Noch keine Nachrichten gespeichert.</div>';return;}
+    container.innerHTML=msgs.map(m=>{
+      const isOut=m.direction==='out';
+      const ts=new Date(m.ts).toLocaleDateString('de',{day:'2-digit',month:'2-digit'})+' '+new Date(m.ts).toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'});
+      const label=isOut?`↑ ${m.kind||'out'}`:`↓ ${m.kind||'in'}`;
+      const bg=isOut?'rgba(0,168,100,0.1)':'var(--surface2)';
+      const body=m.is_placeholder
+        ?`<span style="color:var(--muted);font-style:italic">Verlauf vorhanden, Inhalt unbekannt — Chat einfügen</span>`
+        :esc(m.text||m.loom_url||m.kind||'—');
+      return`<div style="text-align:${isOut?'right':'left'};margin-bottom:8px">
+        <div style="display:inline-block;max-width:88%;padding:6px 10px;background:${bg};border-radius:10px;border:1px solid var(--border);text-align:left">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:3px">${ts} · ${esc(label)}</div>
+          <div style="font-size:12px;line-height:1.5;color:var(--text);word-break:break-word">${body}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){container.innerHTML=`<div style="font-size:12px;color:var(--red)">Fehler: ${esc(e.message)}</div>`;}
 }
